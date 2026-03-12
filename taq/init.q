@@ -12,6 +12,8 @@
 \l ::schema.q
 \l ::converters.q
 
+DEFAULTS: ([letters:"A-Z"; includetestsymbols: 0b; batchsize: 10*1000*1000; compparam: 3#0i])
+
 // @kind function
 // @fileoverview parses a file and applies necessary conversions to the resulting table
 // @param fileName path to the psv file to be parsed
@@ -86,9 +88,11 @@ processParams: {[params]
   if["c" ~ .Q.ty dst; dst:`$dst];
   dst: hsym dst;
 
-  p: ([letters:"A-Z"; includetestsymbols: 0b; batchsize: 10*1000*1000; compparam: 3#0i]);
+  p: DEFAULTS;
   if[3<count params;
     if[not 99h ~ type last params; '"Dictionary is expected as fourth parameter"];
+    unknownParams: (key last params) except key DEFAULTS;
+    if[count unknownParams; '"Unknown parameter(s): ", "," sv string unknownParams];
     p,: last params];
   logger: $[`logger in key p; p`logger; [
     .logger: use`kx.log;

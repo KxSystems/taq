@@ -161,7 +161,7 @@ QUOTERENAME: ([
   Exchange: `ex;
   Symbol: `sym;
   Bid_Price: `bid;
-  Bid_Size: `bSize;
+  Bid_Size: `bsize;
   Offer_Price: `ask;
   Offer_Size: `asize;
   Quote_Condition: `cond;

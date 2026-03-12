@@ -1,4 +1,4 @@
-# Printf Module
+# Taq Module
 
 The kdb-x taq module parses NYSE TAQ psv files and persists result in kdb+ format.
 
