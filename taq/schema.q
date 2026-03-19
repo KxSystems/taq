@@ -91,6 +91,9 @@ EXNAMES: ([A: "NYSE American"; B: "NASDAQ OMX BX"; C: "NYSE National"; D: "FINRA
   Q: "NASDAQ Stock Exchange"; V: "The Investors' Exchange"; W: "Chicago Broad Options Exchange";
   X: "NASDAQ OMX PSX"; Y: "Cboe BYX Exchange"; Z: "Cboe BZX Exchange"])
 
+/ convert symbol keys to characters
+EXNAMES: (raze string key EXNAMES)!value EXNAMES
+
 / Table trade: EQY_US_ALL_TRADE_*.csv
 TRADESCHEMA: (!) . @[;0;`$] flip (
   ("Time";"N");

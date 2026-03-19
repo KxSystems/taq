@@ -2,13 +2,24 @@
 
 _This document provides the version history of the KDB-X Taq Module, detailing released versions, fixes, and improvements._
 
+## 1.1.0
+
+**Release Date**: 2026-03-19
+
+### Fixes and Improvements
+
+- New function (`parseToMemory`) to parse data into memory.
+- New `parseToDisk` option `linked` to create linked columns to master.
+- **NUC**: Values of `exnames` are now strings instead of symbols.
+- **NUC**: `compparam` requires table-specific compression parameters.
+
 ## 1.0.1
 
 **Release Date**: 2026-03-12
 
 ### Fixes and Improvements
 
-- Quote column name fix: Bsize-> bsize
+- Quote column name fix: `Bsize` -> `bsize`.
 - Improved input parameter validation.
 - Documentation fixes.
 
@@ -24,7 +35,7 @@ The Taq module is designed for benchmarking and is based on the [KX Taq scripts]
 - Introduced a new parameter to filter by the first letter of the Symbol.
 - Enhanced error handling.
 - Improved code quality.
-- Added an option to drop test Symbols.
+- Added an option to drop test symbols.
 - Columns are written in parallel for better performance.
 - Batch processing support for a smaller memory footprint.
 - Function documentation now uses qdoc syntax.

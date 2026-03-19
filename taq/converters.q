@@ -20,3 +20,14 @@ masterTestSymbolFilter: ?[;enlist (not; `testFlag);0b;()]
 // @param l string in format like "LM" representing the range of the first letter of the sym column values to be included
 // @param t table with a sym column used for the filtering
 letterFilter: {[l;t] select from t where sym[;0] within l}
+
+// @kind function
+// @fileoverview adds linked column master to sym column of the master table
+// @param dst destination directory
+// @param date partition
+// @param t table that needs to be extended with a linked master column
+//
+// @return the updated table
+addLinkedColToMaster: {[dst:`s; date:`d; t]
+  update master:`master!get[.Q.dd[.Q.par[dst;date;`master];`sym]]?sym from t
+  }

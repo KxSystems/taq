@@ -1,6 +1,6 @@
 # NYSE TAQ Data Loader module
 
-This module provides high-performance utilities for parsing [NYSE TAQ (Trade and Quote) PSV files](https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/), performing data transformations, and persisting the results into a date-partitioned kdb+ database (aka. HDB).
+This module provides high-performance utilities for parsing [NYSE TAQ (Trade and Quote) PSV files](https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/), performing data transformations, and loading the results either into a date-partitioned kdb+ database (HDB) or directly into in-memory tables (RDB).
 
 ## Prerequisites: Input PSV Files
 
@@ -30,7 +30,7 @@ SIZE=small ./scripts/getCSVs.sh /tmp/nysetaqpsv "$DATES"
 
 ### Dataset Statistics (Reference: 2025.07.01)
 
-The following table provides an estimate of the data footprint based on the `SIZE` parameter:
+The following table estimates the data footprint by `SIZE` parameter:
 
 | `SIZE` | Symbol Range (First Letter) | Uncompressed PSVs Size | Uncompressed HDB Size | Symbol Nr | Quote Nr |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -41,11 +41,18 @@ The following table provides an estimate of the data footprint based on the `SIZ
 
 ## Quickstart
 
-The primary interface for this module is the `parseToDisk` function, which requires at least three parameters.
+This module exposes two primary functions:
+
+- **`parseToDisk`** — parses TAQ data and persists it into a date-partitioned HDB on disk.
+- **`parseToMemory`** — parses TAQ data and loads it directly into in-memory tables, suitable for RDB-style workflows.
 
 ```q
-([parseToDisk]): use `kx.taq
+([parseToMemory; parseToDisk]): use `kx.taq
 ```
+
+### parseToDisk
+
+`parseToDisk` requires at least three parameters.
 
 To create the `trade`, `quote`, `master` tables and `exnames` dictionary for October 2, 2025, and save them to `/tmp/kdbdb`:
 
@@ -82,19 +89,68 @@ AMZN 0D04:00:00.010640417 219.98 100  219.41 219.98
 ..
 ```
 
+### parseToMemory
+
+`parseToMemory` requires at least two parameters — no destination path is needed as data is loaded directly into memory.
+
+To load the `trade`, `quote`, `master` tables and `exnames` dictionary for October 2, 2025, into memory:
+
+```q
+(trade; quote; master; exnames): parseToMemory["/tmp/nysetaqpsv"; 2025.10.02]
+```
+
+The resulting `trade` and `quote` tables are sorted by `time` and carry a grouped attribute on `sym`, matching the layout of a typical RDB. Unlike the HDB tables produced by `parseToDisk`, in-memory tables do not include a `date` column.
+
+```q
+/ Perform an as-of join (aj) between the in-memory trades and quotes
+q)aj[`sym`time; select sym, time, price, size from trade where sym in `MSFT`GOOG`AMZN; select sym, time, bid, ask from quote]
+sym  time                 price  size bid    ask
+---------------------------------------------------
+AMZN 0D04:00:00.009709706 219.5  3    219.41 219.98
+AMZN 0D04:00:00.010213563 219.7  3    219.41 219.98
+AMZN 0D04:00:00.010379075 219.7  2    219.41 219.98
+AMZN 0D04:00:00.010640417 219.98 100  219.41 219.98
+...
+```
+
+Storing a full day of NYSE TAQ data in memory is RAM-intensive. The table below shows approximate memory requirements by `SIZE` parameter, measured against data from 2025.10.02.
+
+| `SIZE` | Symbol Range (First Letter) | Memory need |
+| --- | ---: | ---: |
+| `small` | Z | ~2 GB |
+| `medium` | I | ~14 GB |
+| `large` | A-H | ~79 GB |
+| `full` | A-Z | ~170 GB |
+
 ## Configuration Options
 
-You can pass a dictionary as the fourth argument to `parseToDisk` to customize the ingestion process.
+Both `parseToDisk` and `parseToMemory` accept an optional dictionary as their last argument to customize the ingestion process.
+
+### Common parameters
 
 | Key | Default | Description |
 | --- | ---: | --- |
-| `letters` | "A-Z" | Restricts ingestion to symbols starting with specific letters (e.g., "K-N") |
-| `includetestsymbols` | 0b | If `1b`, includes instruments flagged as test symbols in the `master` PSV. |
-| `batchsize`| 10 000 000 | Number of rows processed in memory per chunk. Set to `0` to read the entire file at once for faster processing if RAM permits. |
-| `compparam` | `3#0`, i.e. no compression | Compression settings for [.z.zd](https://code.kx.com/q/ref/dotz/#zzd-compressionencryption-defaults). Example: `(17;2;6)` for logical block size, algorithm, and level. You can also pass a dictionary if you would like to specify column-level compression |
-| `logger` | logger created by `.logger.createLog[]` of the [KX log module](https://code.kx.com/kdb-x/modules/logging/overview.html) | A logger used for status updates during the long running process |
+| `letters` | `"A-Z"` | Restricts ingestion to symbols whose first letter falls within the specified range (e.g., `"K-N"`). |
+| `includetestsymbols` | `0b` | If `1b`, includes instruments flagged as test symbols in the `master` PSV. |
+| `batchsize` | `10 000 000` | Number of rows processed per chunk. Set to `0` to read the entire file in one pass for faster throughput if RAM permits. |
+| `logger` | logger created by `.logger.createLog[]` of the [KX log module](https://code.kx.com/kdb-x/modules/logging/overview.html) | Logger used for status updates during the ingestion process. |
+
+### parseToDisk extra parameters
+
+| Key | Default | Description |
+| --- | ---: | --- |
+| `compparam` | `([master: 0 0 0; trade: 0 0 0; quote: 0 0 0])`, i.e. no compression | Table-specific compression settings for [.z.zd](https://code.kx.com/q/ref/dotz/#zzd-compressionencryption-defaults). Example: `([master: 0 0 0; trade: 17 2 6; quote: 17 2 6])`. Pass a dictionary of dictionaries to specify column-level compression. |
+| `linked` | `0b` | Set `1b` to add a linked column `master` to the `trade` and `quote` tables, linking via `sym` to the `master` table. |
+
+### parseToMemory extra parameters
+
+| Key | Default | Description |
+| --- | ---: | --- |
+| `grouped` | `1b` | If `1b`, applies the grouped attribute to the `sym` column in the `trade` and `quote` tables. |
+| `sortbytime` | `1b` | If `1b`, sorts `trade` and `quote` by `time` and applies the sorted attribute. |
+
 
 ## Performance Notes
 
-* **Multithreading**: The PSV parsing engine leverages multithreading. Ensure you start your ingestion process with the `-s` flag (e.g., `q -s 8`) to utilize available CPU cores.
-* **Memory Management**: If you encounter memory pressure, reduce the `batchSize` in the options dictionary. Conversely, increasing it (or setting it to `0`) will speed up the process.
+* **Multithreading**: The PSV parsing engine is multithreaded. Start your ingestion process with the `-s` flag (e.g., `q -s 8`) to make use of available CPU cores.
+* **Memory Management**: If you encounter memory pressure, reduce `batchsize` in the options dictionary. Conversely, increasing it (or setting it to `0`) will speed up the process.
