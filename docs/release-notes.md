@@ -2,6 +2,12 @@
 
 _This document provides the version history of the KDB-X Taq Module, detailing released versions, fixes, and improvements._
 
+## Unreleased
+
+### Fixes and Improvements
+
+- New `parseToDisk` option `sortbytime` produces time-sorted (`` `s#time``) output via bounded-memory per-batch staging and a k-way merge, enabling CE-friendly ingest of datasets that exceed the working-set cap.
+
 ## 1.1.0
 
 **Release Date**: 2026-03-19

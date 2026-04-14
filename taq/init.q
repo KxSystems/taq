@@ -15,8 +15,10 @@
 \l ::converters.q
 
 DEFAULTS_COMMON: ([letters:"A-Z"; includetestsymbols: 0b; batchsize: 10*1000*1000])
-DEFAULTS_DISK: DEFAULTS_COMMON, ([compparam: `master`quote`trade!3#enlist 3#0i; linked:0b])
+DEFAULTS_DISK: DEFAULTS_COMMON, ([compparam: `master`quote`trade!3#enlist 3#0i; linked:0b; sortbytime:0b])
 DEFAULTS_MEMORY: DEFAULTS_COMMON, ([grouped: 1b; sortbytime: 1b])
+
+MERGE_CHUNK: 1000000  / rows read per stage per iteration in the time-sort k-way merge
 
 // @kind function
 // @fileoverview parses a file and applies necessary conversions to the resulting table
@@ -44,6 +46,41 @@ enumAndSave: {[dst:`s; date:`d; tableName:`s; t; saveDotD:`b]
   path: .Q.par[dst;date;tableName];
   if[saveDotD; .Q.dd[path;`.d] set cols t];
   genericUpsert[peach; path; .Q.en[dst] t];
+  }
+
+// @kind function
+// @fileoverview k-way streaming merge of K time-sorted splayed stages into a
+//   single splayed destination, applying `s#time and preserving it across upserts.
+//   Peak memory is bounded by K * chunkSize rows, independent of total dataset size,
+//   enabling CE-friendly (bounded-heap) time-sorted ingest of datasets larger than RAM.
+// @param stagePaths list of splayed stage paths, each internally time-sorted
+// @param finalDir splayed destination path
+// @param chunkSize max rows to read per stage per iteration
+// @param logger logger
+mergeTimeStages: {[stagePaths; finalDir:`s; chunkSize:`j; logger]
+  stgs:  get each stagePaths;
+  times: stgs @\: `time;
+  lens:  count each stgs;
+  cur:   (count stgs)#0;
+  .Q.dd[finalDir; `.d] set cols first stgs;
+  emit:  {[fd; t] genericUpsert[peach; fd; @[t; `time; `s#]]}[finalDir];
+  while[any cur < lens;
+    active:   where cur < lens;
+    peekIdx:  (cur[active] + chunkSize - 1) & (lens[active]) - 1;
+    horizon:  min times[active] @' peekIdx;
+    safeLens: 0 | 1 + (times[active] bin\: horizon) - cur[active];
+    frames:   {[s;c;n] n # c _ s}'[stgs[active]; cur[active]; safeLens];
+    emit `time xasc raze frames;
+    cur[active]: cur[active] + safeLens];
+  }
+
+// @kind function
+// @fileoverview removes a splayed directory and its column files
+// @param p splayed dir path
+hdelSplayed: {[p:`s]
+  if[not () ~ key p;
+    hdel each .Q.dd[p] each (cols get p),`.d;
+    hdel p]
   }
 
 // @kind function
@@ -120,6 +157,10 @@ processParamsDisk: {[params]
 
   if[any (count key .Q.par[dst; date]@) each `master`quote`trade;
     '"Destination directories exist. Clean up and rerun the script"];
+
+  partKeys: key .Q.dd[dst; `$string date];
+  if[$[11h = type partKeys; any partKeys like "*_stage_*"; 0b];
+    '"Stage directories from a previous run exist. Clean up and rerun the script"];
 
   (src; date; dst; p; logger)
   }
@@ -215,24 +256,52 @@ parseToMemory: ('[{[params]
 //       - logger: custom logger that implements info method. If not passed then a simple kx.log is used.
 //       - compparam: table-specific compression parameters.
 //       - linked: set `1b` to add a linked column `master` to the `trade` and `quote` tables, linking via `sym` to the `master` table.
+//       - sortbytime: set `1b` to produce time-sorted output with `s#time (no `p#sym).
+//                     Each parsed batch is sorted by time in memory and written to its own
+//                     splayed stage (`trade_stage_N` / `quote_stage_N`); at finalize, stages
+//                     are streamed into the final tables via a k-way merge that preserves
+//                     `s#time across column upserts. Peak heap is bounded by K * MERGE_CHUNK
+//                     rows, so CE users can ingest datasets that exceed the working-set cap.
 parseToDisk: ('[{[params]
   (src; date; dst; p; logger): processParamsDisk params;
   setCompr: {[x;] .z.zd:x};
-  preparse: ([master: setCompr p[`compparam; `master]; quote: setCompr p[`compparam; `quote]; trade: setCompr p[`compparam; `trade]]);
+
   writerWrapper: {[linked:`b; dst:`s; date:`d; tableName:`s; t; saveDotD:`b]
       if[linked; t: addLinkedColToMaster[dst; date; t]]; / TODO: refactor, `addLinkedColToMaster` is a converter
       enumAndSave[dst; date; tableName; t; saveDotD]}[p`linked; dst; date];
-  postparse: ([master: enumAndSave[dst; date; `$"master/"];
-    trade: writerWrapper `trade;
-    quote: writerWrapper `quote]);
+
+  / Time-sort path: each parsed batch is sorted by time in memory and written to its
+  / own splayed stage ({trade,quote}_stage_N). At finalize, stages are k-way merged
+  / into the final tables with `s#time preserved. Per-batch (not per-file) staging is
+  / required because TAQ PSVs are sym-then-time, so batches aren't globally monotone.
+  tradeStageIdx:: quoteStageIdx:: 0;
+  tradeStageWriter: {[wr;t;sd] tradeStageIdx+:: 1; wr[`$"trade_stage_",string tradeStageIdx; `time xasc t; 1b]}[writerWrapper];
+  quoteStageWriter: {[wr;t;sd] quoteStageIdx+:: 1; wr[`$"quote_stage_",string quoteStageIdx; `time xasc t; 1b]}[writerWrapper];
+
+  / Stages are ephemeral; override trade/quote compression to none for stage writes,
+  / and restore per-table compression before the final merge.
+  compr: $[p`sortbytime; p[`compparam], `trade`quote!2#enlist 3#0i; p`compparam];
+  preparse:  `master`trade`quote!(setCompr compr`master; setCompr compr`trade; setCompr compr`quote);
+  postparse: `master`trade`quote!(
+    enumAndSave[dst; date; `$"master/"];
+    $[p`sortbytime; tradeStageWriter; writerWrapper `trade];
+    $[p`sortbytime; quoteStageWriter; writerWrapper `quote]);
 
   parsePSVs[src; date; p; preparse; postparse; logger];
 
-  logger[`info] "Adding parted attribute to trade";
-  psym[`sym; .Q.par[dst; date; `trade]];
+  mergeOne: {[dst; date; p; logger; tbl; nStages]
+    logger[`info] "Merging ",string[nStages]," ",string[tbl]," stage(s) by time...";
+    .z.zd: p[`compparam; tbl];
+    stagePaths: .Q.par[dst; date;] each `$ (string[tbl],"_stage_") ,/: string 1 + til nStages;
+    mergeTimeStages[stagePaths; .Q.par[dst; date; tbl]; MERGE_CHUNK; logger];
+    hdelSplayed each stagePaths};
+  psymOne: {[dst; date; logger; tbl]
+    logger[`info] "Adding parted attribute to ", string tbl;
+    psym[`sym; .Q.par[dst; date; tbl]]};
 
-  logger[`info] "Adding parted attribute to quote";
-  psym[`sym; .Q.par[dst; date; `quote]];
+  $[p`sortbytime;
+    mergeOne[dst; date; p; logger]'[`trade`quote; tradeStageIdx, quoteStageIdx];
+    psymOne[dst; date; logger] each `trade`quote];
 
   logger[`info] "Saving exchange names...";
   .Q.dd[dst; `exnames] set EXNAMES;

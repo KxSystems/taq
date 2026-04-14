@@ -141,6 +141,7 @@ Both `parseToDisk` and `parseToMemory` accept an optional dictionary as their la
 | --- | ---: | --- |
 | `compparam` | `([master: 0 0 0; trade: 0 0 0; quote: 0 0 0])`, i.e. no compression | Table-specific compression settings for [.z.zd](https://code.kx.com/q/ref/dotz/#zzd-compressionencryption-defaults). Example: `([master: 0 0 0; trade: 17 2 6; quote: 17 2 6])`. Pass a dictionary of dictionaries to specify column-level compression. |
 | `linked` | `0b` | Set `1b` to add a linked column `master` to the `trade` and `quote` tables, linking via `sym` to the `master` table. |
+| `sortbytime` | `0b` | If `1b`, produces time-sorted `trade` and `quote` tables with the `` `s#`` attribute on `time` instead of the default `` `p#`` on `sym`. Each parsed batch is sorted by time in memory, staged under `trade_stage_N` / `quote_stage_N` splayed dirs, then streamed into the final table via a bounded-memory k-way merge — enabling CE-friendly ingest of datasets that do not fit in the working-set cap. Choose this mode for replay, streaming, or range-scan workflows; keep the default `0b` for per-symbol query patterns that benefit from the parted index. |
 
 ### parseToMemory extra parameters
 

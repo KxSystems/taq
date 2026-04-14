@@ -36,6 +36,38 @@ testPersistedTables: {[dbdir]
         fail "aj failed"];
     }
 
+testTimeSortedTables: {[dbdir]
+    .Q.lo[`$dbdir; 0b; 0b];
+    obj: `trade`quote`master`exnames;
+    empty: obj where not count each value each obj;
+    if[count empty;
+        fail "empty table(s) found: ", "," sv string empty];
+
+    / time-sorted path should have `s#time, not `p#sym
+    if[not all `s = {meta[x][`time;`a]} each (trade; quote);
+        fail "missing `s attribute on `time"];
+    if[any `p = {meta[x][`sym;`a]} each (trade; quote);
+        fail "unexpected `p attribute on `sym (time-sort path should not apply it)"];
+
+    / verify time is globally monotone per partition
+    tTimes: (select time from trade where date=min date) `time;
+    if[not tTimes ~ asc tTimes; fail "trade time not monotone"];
+    qTimes: (select time from quote where date=min date) `time;
+    if[not qTimes ~ asc qTimes; fail "quote time not monotone"];
+
+    / basic select
+    if[0=count asc select sum size by exch: exnames ex from trade;
+        fail "simple select failed"];
+
+    / time-range query (should use s# binary search path)
+    tlo: first tTimes;
+    thi: tTimes @ (count tTimes) div 2;
+    if[0=count select from trade where date=min date, time within (tlo; thi);
+        fail "time-range query on trade failed"];
+    if[0=count select from quote where date=min date, time within (tlo; thi);
+        fail "time-range query on quote failed"];
+    }
+
 ///////////////////////////////////////////////////////////
 
 res: .[parseToMemory;("testdata"; 2025.07.01; 3; `dummyparameter); ::]
@@ -126,6 +158,38 @@ system "rm -rf ", dbdir
 dbdir: testdir, "/test6"
 parseToDisk["testdata"; 2025.07.01; dbdir; ([linked: 1b])]
 testPersistedTables dbdir
+$[`master in cols trade;
+    if[not `master = meta[trade][`master]`f; fail "trade column master is not a linked column to table master"];
+    fail "missing linked column master from trade"];
+$[`master in cols quote;
+    if[not `master = meta[quote][`master]`f; fail "quote column master is not a linked column to table master"];
+    fail "missing linked column master from quote"];
+if[0=count select master.description, price from trade;
+    fail "using linked column in a select failed"];
+if[0=count select master.description, ask, bid from quote;
+    fail "using linked column in a select failed"];
+system "rm -rf ", dbdir
+
+
+-1 "Testing sortbytime with default parameters";
+dbdir: testdir, "/test7"
+parseToDisk["testdata"; 2025.07.01; dbdir; ([sortbytime: 1b])]
+testTimeSortedTables dbdir
+/ stage dirs should have been cleaned up
+if[any (key `$dbdir,"/2025.07.01") like "*_stage_*";
+    fail "stage dirs left behind after sortbytime run"];
+system "rm -rf ", dbdir
+
+-1 "Testing sortbytime without batching";
+dbdir: testdir, "/test8"
+parseToDisk["testdata"; 2025.07.01; dbdir; ([sortbytime: 1b; batchsize: 0])]
+testTimeSortedTables dbdir
+system "rm -rf ", dbdir
+
+-1 "Testing sortbytime with linked column";
+dbdir: testdir, "/test9"
+parseToDisk["testdata"; 2025.07.01; dbdir; ([sortbytime: 1b; linked: 1b])]
+testTimeSortedTables dbdir
 $[`master in cols trade;
     if[not `master = meta[trade][`master]`f; fail "trade column master is not a linked column to table master"];
     fail "missing linked column master from trade"];
