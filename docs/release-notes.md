@@ -2,6 +2,19 @@
 
 _This document provides the version history of the KDB-X Taq Module, detailing released versions, fixes, and improvements._
 
+## 1.2.0
+
+**Release Date**: 2026-05-17
+
+### Fixes and Improvements
+
+- **getCSVs.sh** improvements:
+  - disk-efficient (in-place) file manipulation.
+  - `master` and `trade` file filtering based on the first letter
+- **NUC**: more flexible `parseToMemory`:
+  - sorting column is now configurable via `sortcols`: parameter `sortbytime` is replaced by parameter `sortcols`
+  - attribute on `sym` is now configurable via `symattr`: parameter `grouped` is replaced by parameter `symattr`
+
 ## 1.1.0
 
 **Release Date**: 2026-03-19
