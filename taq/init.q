@@ -16,7 +16,7 @@
 
 DEFAULTS_COMMON: ([letters:"A-Z"; includetestsymbols: 0b; batchsize: 10*1000*1000])
 DEFAULTS_DISK: DEFAULTS_COMMON, ([compparam: `master`quote`trade!3#enlist 3#0i; linked:0b])
-DEFAULTS_MEMORY: DEFAULTS_COMMON, ([grouped: 1b; sortbytime: 1b])
+DEFAULTS_MEMORY: DEFAULTS_COMMON, ([symattr: `g; sortcols: `time])
 
 // @kind function
 // @fileoverview parses a file and applies necessary conversions to the resulting table
@@ -105,7 +105,12 @@ processParamsCommon: {[params; paramNr: `j; defaults]
 processParamsMemory: {[params]
   if[2>count params; '"Too few parameters passed to parseToDisk. ",
     "At least source directory and date must be provided"];
-  processParamsCommon[params; 3; DEFAULTS_MEMORY]
+  (src; date; p; logger): processParamsCommon[params; 3; DEFAULTS_MEMORY];
+  if[not p[`symattr] in ``g`p; '"Invalid symattr value. Must be `,`g or `p, got ", string p`symattr];
+  if[not all p[`sortcols] in `time`ex`sym`cond`corr`seq`source`participantTimestamp;
+    '"Invalid sort column(s). Only subsets of `time`ex`sym`cond`corr`seq`source`participantTimestamp are allowed, got: ",
+      $[0<type p`sortcols; "," sv ;] string p`sortcols];
+  (src; date; p; logger)
   }
 
 processParamsDisk: {[params]
@@ -166,10 +171,9 @@ parsePSVs: {[src:`C; date:`d; p; preparse; postparse; logger]
 //       - batchsize: number of rows to process in each batch. Default is 10 million rows.
 //                    Set to 0 to disable batch processing and process all rows at once (not recommended if you don't have large amount of memory).
 //       - logger: optional custom logger that implements info method. If not passed then a simple kx.log is used.
-//       - sortbytime: boolean flag to sort the trade and quote tables by time. Default is true.
-//       - grouped: boolean flag to add grouped attribute by sym to trade and quote tables. Default is true.
+//       - sortcols: list of sort columns for the trade and quote tables. Default is `time.
+//       - symattr: attribute for the sym column of trade and quote tables. Default is `g.
 // @returns a list of 4 items: trade table, quote table, keyed master table and exchange names dictionary
-
 parseToMemory: ('[{[params]
   (src; date; p; logger): processParamsMemory params;
   preparse: `master`trade`quote!3#(::);
@@ -183,18 +187,20 @@ parseToMemory: ('[{[params]
   delete quote from .z.M;
   delete master from .z.M;
 
-  if[p`sortbytime;
-    logger[`info] "Sorting trade by time";
-    t: `time xasc t;
-    logger[`info] "Sorting quote by time";
-    q: `time xasc q
+  if[count p`sortcols;
+    logger[`info] "sorting trade table by ", $[0<type p`sortcols; "," sv ;] string p`sortcols;
+    t: p[`sortcols] xasc t;
+
+    logger[`info] "sorting quote table by ", $[0<type p`sortcols; "," sv ;] string p`sortcols;
+    q: p[`sortcols] xasc q;
   ];
 
-  if[p`grouped;
-    logger[`info] "Adding grouped attribute to trade";
-    t: update `g#sym from t;
-    logger[`info] "Adding grouped attribute to quote";
-    q: update `g#sym from q;
+  if[not null p`symattr;
+    logger[`info] "Adding attribute ", string[p `symattr], " to sym of trade";
+    t: update p[`symattr]#sym from t;
+
+    logger[`info] "Adding attribute ", string[p `symattr], " to sym of quote";
+    q: update p[`symattr]#sym from q;
   ];
 
   .Q.gc[];

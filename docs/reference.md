@@ -144,11 +144,20 @@ Both `parseToDisk` and `parseToMemory` accept an optional dictionary as their la
 
 ### parseToMemory extra parameters
 
-| Key | Default | Description |
-| --- | ---: | --- |
-| `grouped` | `1b` | If `1b`, applies the grouped attribute to the `sym` column in the `trade` and `quote` tables. |
-| `sortbytime` | `1b` | If `1b`, sorts `trade` and `quote` by `time` and applies the sorted attribute. |
+| Key | Default | Description | Options
+| --- | ---: | --- | --- |
+| `symattr` | ``` `g``` | Attribute for the `sym` column of `trade` and `quote` tables. | either of ``` `g`p` ``` |
+| `sortcols` | ``` `time``` | Sort column or a list of sort columns for the `trade` and `quote` tables. | Any subset of ``` `time`ex`sym`cond`corr`seq`source`participantTimestamp```|
 
+#### Example usages
+
+Sorting by `sym` and having a parted attribute on `sym`:
+
+```q
+parseToMemory["/tmp/nysetaqpsv"; 2025.10.02; ([letters: "Y-Z"; sortcols: `sym; symattr: `p])]
+```
+
+The original data is sorted by time within each symbol, so sorting by `sym` actually means sorting by `sym` and `time`.
 
 ## Performance Notes
 

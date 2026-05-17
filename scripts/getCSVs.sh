@@ -10,6 +10,13 @@ SIZE="${SIZE:-full}"
 
 readonly URLPREFIX="https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/"
 
+# BSD sed (macOS) requires an explicit empty string after -i; GNU sed does not accept it as a separate arg
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    SED_INPLACE=(sed -i '')
+else
+    SED_INPLACE=(sed -i)
+fi
+
 function get_letters () {
     SIZE=$1
 
@@ -78,15 +85,22 @@ function get_CSVs () {
 
   # TODO: add check if last line starts with 'END'
   echo "Removing last lines and adding proper extension"
-  head -n -1 ${tfname%.*} > ${tfname%.*}.psv
-  rm ${tfname%.*}
-  head -n -1 ${mfname%.*} > ${mfname%.*}.psv
-  rm ${mfname%.*}
+  "${SED_INPLACE[@]}" '$d' ${mfname%.*} && mv ${mfname%.*} ${mfname%.*}.psv
+  "${SED_INPLACE[@]}" '$d' ${tfname%.*} && mv ${tfname%.*} ${tfname%.*}.psv
   for letter in ${LETTERARRAY[@]}; do
     qfname=$(getFilename "SPLITS" "BBO_${letter}" ${date})
-    head -n -1 ${qfname%.*} > ${qfname%.*}.psv
-    rm ${qfname%.*}
+    "${SED_INPLACE[@]}" '$d' ${qfname%.*} && mv ${qfname%.*} ${qfname%.*}.psv
   done
+
+  local letters=$(IFS=''; printf '%s' "${LETTERARRAY[@]}")
+  if [[ ${#letters} -lt 26 ]]; then
+    echo "Filtering master file for letters ${letters}"
+    # in master file the Symbol is the first column
+    gawk -i inplace -F'|' -v pat="^[$letters]" 'NR==1 || substr($1,1,1) ~ pat' "${mfname%.*}.psv"
+    # in trade file the Symbol is the third column
+    echo "Filtering trade file for letters ${letters}"
+    gawk -i inplace -F'|' -v pat="^[$letters]" 'NR==1 || substr($3,1,1) ~ pat' "${tfname%.*}.psv"
+  fi
 
   popd
 }

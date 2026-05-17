@@ -63,18 +63,25 @@ testInMemoryTables parseToMemory["testdata"; 2025.07.01; ([batchsize: 0])]
 testInMemoryTables parseToMemory["testdata"; 2025.07.01; ([batchsize: 500])]
 
 -1 "Testing without sorted time";
-(trade; quote; ; ): parseToMemory["testdata"; 2025.07.01; ([sortbytime: 0b])]
+(trade; quote; ; ): parseToMemory["testdata"; 2025.07.01; ([sortcols: ()])]
 if[`s = meta[trade][`time; `a];
     fail "trade time has sorted attribute"];
 if[`s = meta[quote][`time; `a];
     fail "quote time has sorted attribute"];
 
+-1 "Testing without sorted by sym";
+(trade; quote; ; ): parseToMemory["testdata"; 2025.07.01; ([sortcols: `sym; symattr: `p])]
+if[not `p = meta[trade][`sym; `a];
+    fail "trade sym has parted attribute"];
+if[not `p = meta[quote][`sym; `a];
+    fail "quote sym has parted attribute"];
+
 -1 "Testing without grouped sym";
-(trade; quote; ; ): parseToMemory["testdata"; 2025.07.01; ([grouped: 0b])]
-if[`g = meta[trade][`sym; `a];
-    fail "trade sym has grouped attribute"];
-if[`g = meta[quote][`sym; `a];
-    fail "quote sym has grouped attribute"];
+(trade; quote; ; ): parseToMemory["testdata"; 2025.07.01; ([symattr: `])]
+if[not ` = meta[trade][`sym; `a];
+    fail "trade sym has an attribute"];
+if[not ` = meta[quote][`sym; `a];
+    fail "quote sym has an attribute"];
 
 -1 "All in-memory tests passed";
 ///////////////////////////////////////////////////////////
