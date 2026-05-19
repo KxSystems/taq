@@ -3,46 +3,10 @@
 set -euo pipefail
 
 script_dir=$(dirname "${BASH_SOURCE[0]}")
-
-CSVDIR="$1"
-IFS=',' read -r -a DATEARRAY <<< "$2"
-SIZE="${SIZE:-full}"
+# shellcheck source=common.sh
+source "${script_dir}/common.sh"
 
 readonly URLPREFIX="https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/"
-
-# BSD sed (macOS) requires an explicit empty string after -i; GNU sed does not accept it as a separate arg
-if [[ "$(uname -s)" == "Darwin" ]]; then
-    SED_INPLACE=(sed -i '')
-else
-    SED_INPLACE=(sed -i)
-fi
-
-function get_letters () {
-    SIZE=$1
-
-    readonly VALID_SIZES=("full" "large" "medium" "small")
-    : "${SIZE:?Error: SIZE must be set to 'full', 'large', 'medium', or 'small'}"
-
-    if [[ ! " ${VALID_SIZES[*]} " =~ " ${SIZE} " ]]; then
-        echo "Error: Unknown SIZE: $SIZE. Valid options are: ${VALID_SIZES[*]}"
-        exit 1
-    fi
-
-    case "$SIZE" in
-      "full")   LETTERS='A-Z' ;;
-      "large")  LETTERS='A-H' ;;
-      "medium") LETTERS='I-I' ;;
-      "small")  LETTERS='Z-Z' ;;
-    esac
-
-    echo ${LETTERS}
-}
-
-
-function getFilename() {
-    local type=$1 letter=$2 date=$3
-    echo "${type}_US_ALL_${letter}_${date}.gz"
-}
 
 function get_CSVs () {
   local date=$1
@@ -107,9 +71,6 @@ function get_CSVs () {
 
 echo "NYSE TAQ CSV capture started."
 readonly start=$(date +%s)
-
-LETTERS=$(get_letters $SIZE)
-LETTERARRAY=($(eval echo {${LETTERS:0:1}..${LETTERS:2:1}}))
 
 for date in ${DATEARRAY[@]}; do
   get_CSVs $date $LETTERARRAY

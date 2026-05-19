@@ -2,6 +2,14 @@
 
 _This document provides the version history of the KDB-X Taq Module, detailing released versions, fixes, and improvements._
 
+## 1.3.0
+
+**Release Date**: 2026-05-19
+
+### Fixes and Improvements
+
+- New function `parseToTP` (and `script/sort.sh`) to publish data to TP as if data arrived from the exchange.
+
 ## 1.2.0
 
 **Release Date**: 2026-05-17

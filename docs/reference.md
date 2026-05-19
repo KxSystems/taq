@@ -1,38 +1,52 @@
 # NYSE TAQ Data Loader module
 
-This module provides high-performance utilities for parsing [NYSE TAQ (Trade and Quote) PSV files](https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/), performing data transformations, and loading the results either into a date-partitioned kdb+ database (HDB) or directly into in-memory tables (RDB).
+This module provides high-performance utilities for parsing [NYSE TAQ (Trade and Quote) PSV files](https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/) and performing data transformations. Results can be:
+
+- persisted into a date-partitioned kdb+ database (HDB)
+- loaded into in-memory tables (RDB)
+- replayed into a [tickerplant](https://code.kx.com/q/architecture/tickq/) (TP)
 
 ## Prerequisites: Input PSV Files
 
 The module requires NYSE TAQ master, trade, and quote PSV files. These can be downloaded from the [NYSE FTP server](https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/) and extracted into a local directory.
 
 > [!WARNING]
-> The NYSE TAQ files are large. Depending on your network bandwidth, downloading them may take a long time and may require tens of gigabytes of disk space. Consider passing `SIZE=small` to `getCSVs.sh`.
+> The NYSE TAQ files are large. Depending on your network bandwidth, downloading them may take a long time and may require tens of gigabytes of disk space. Consider passing `--size small` to `getCSVs.sh`.
 
-A utility script, `getCSVs.sh` (located in directory `scripts`), is provided to automate the download and extraction process via `curl`. To download and unzip all available TAQ files to `/tmp/nysetaqpsv`:
+A utility script, `getCSVs.sh` (located in the `scripts` directory), is provided to automate the download and extraction process via `curl`. To download and unzip all available TAQ files to `/tmp/nysetaqpsv`:
 
 ```bash
 # Extract available dates from the NYSE FTP
 DATES=$(curl -s "https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/" |  grep -oE '"EQY_US_ALL_TRADE_[0-9]{8}\.gz"' |  grep -oE '[0-9]{8}' |paste -sd,)
-./scripts/getCSVs.sh /tmp/nysetaqpsv "$DATES"
+./scripts/getCSVs.sh --csvdir /tmp/nysetaqpsv --dates "$DATES"
 ```
 
 To manage disk space and bandwidth, you can restrict the download scope by:
 
    1. **Limiting Dates:** Target a specific date (e.g., the most recent available).
-   1. **Using the `SIZE` Variable**: Filter by symbol ranges using the `SIZE` environment variable.
+   1. **Using the `--size` flag**: Filter by symbol ranges using the `--size` flag (or `-s`).
 
 ```bash
 # Example: Download PSVs for only a single date
 DATES=$(curl -s https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/| grep -oE 'EQY_US_ALL_TRADE_2[0-9]{7}' | grep -oE '2[0-9]{7}'|head -1)
-SIZE=small ./scripts/getCSVs.sh /tmp/nysetaqpsv "$DATES"
+./scripts/getCSVs.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size small
+```
+
+### For replay: sorting by time
+
+To replay NYSE TAQ data to TP, input PSV files must be sorted by time. `./scripts/sort.sh` sorts trade and individual quote files using the [sort](https://man7.org/linux/man-pages/man1/sort.1.html) command, then merges the quote files into a single large file in linear time via `sort -m`.
+
+> **Note:** `sort` requires temporary disk space during sorting. If the default `/tmp` directory has insufficient space, set the `TMPDIR` environment variable to a directory with more space before running the script.
+
+```bash
+./scripts/sort.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size small
 ```
 
 ### Dataset Statistics (Reference: 2025.07.01)
 
 The following table estimates the data footprint by `SIZE` parameter:
 
-| `SIZE` | Symbol Range (First Letter) | Uncompressed PSVs Size | Uncompressed HDB Size | Symbol Nr | Quote Nr |
+| `SIZE` | Symbol Range (First Letter) | Uncompressed PSVs Size | Uncompressed HDB Size | Symbol Count | Quote Count |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `small` | Z | ~10 GB | ~0.3 GB | 246 | 4,041,795 |
 | `medium` | I | ~20 GB | ~8.1 GB | 1,313 | 125,442,373 |
@@ -41,20 +55,21 @@ The following table estimates the data footprint by `SIZE` parameter:
 
 ## Quickstart
 
-This module exposes two primary functions:
+This module exposes three primary functions:
 
 - **`parseToDisk`** — parses TAQ data and persists it into a date-partitioned HDB on disk.
 - **`parseToMemory`** — parses TAQ data and loads it directly into in-memory tables, suitable for RDB-style workflows.
+- **`parseToTP`** — parses TAQ data and sends batches asynchronously to a TP via `.u.upd`, as if data arrived from the exchange. Input PSV files must be [sorted by time](#for-replay-sorting-by-time).
 
 ```q
-([parseToMemory; parseToDisk]): use `kx.taq
+([parseToMemory; parseToDisk; parseToTP]): use `kx.taq
 ```
 
 ### parseToDisk
 
 `parseToDisk` requires at least three parameters.
 
-To create the `trade`, `quote`, `master` tables and `exnames` dictionary for October 2, 2025, and save them to `/tmp/kdbdb`:
+To create the `trade`, `quote`, `master` tables, and `exnames` dictionary for October 2, 2025, and save them to `/tmp/kdbdb`:
 
 ```q
 parseToDisk["/tmp/nysetaqpsv"; 2025.10.02; "/tmp/kdbdb"]
@@ -86,14 +101,14 @@ AMZN 0D04:00:00.009709706 219.5  3    219.41 219.98
 AMZN 0D04:00:00.010213563 219.7  3    219.41 219.98
 AMZN 0D04:00:00.010379075 219.7  2    219.41 219.98
 AMZN 0D04:00:00.010640417 219.98 100  219.41 219.98
-..
+...
 ```
 
 ### parseToMemory
 
 `parseToMemory` requires at least two parameters — no destination path is needed as data is loaded directly into memory.
 
-To load the `trade`, `quote`, `master` tables and `exnames` dictionary for October 2, 2025, into memory:
+To load the `trade`, `quote`, `master` tables, and `exnames` dictionary for October 2, 2025, into memory:
 
 ```q
 (trade; quote; master; exnames): parseToMemory["/tmp/nysetaqpsv"; 2025.10.02]
@@ -122,17 +137,42 @@ Storing a full day of NYSE TAQ data in memory is RAM-intensive. The table below 
 | `large` | A-H | ~79 GB |
 | `full` | A-Z | ~170 GB |
 
+### parseToTP
+
+Input PSV files must be [sorted by time](#for-replay-sorting-by-time) for proper replay of the data. `parseToTP` requires the tickerplant address as a third parameter:
+
+```q
+parseToTP["/tmp/nysetaqpsv"; 2025.10.02; `:localhost:5010; ([batchsize: 5000])]
+```
+
+The third parameter is passed directly to [hopen](https://code.kx.com/kdb-x/ref/hopen.html), so you can also pass a port number if the TP is on the same box:
+
+```q
+parseToTP["/tmp/nysetaqpsv"; 2025.10.02; 5010; ([batchsize: 5000])]
+```
+
+`parseToTP` calls `.u.upd` on the remote q process with table name as the first parameter and the records (as a table) as the second parameter. The simplest way to test this function is to start a q process on the provided port (5010) and define `.u.upd` as `upsert`:
+
+```bash
+$ q -p 5010
+...
+q).u.upd: upsert
+```
+
+`parseToTP` publishes quotes after trades. If you prefer simultaneous publication, start two kdb+ processes and use the `tbls` optional parameter to control which tables each process publishes.
+
 ## Configuration Options
 
-Both `parseToDisk` and `parseToMemory` accept an optional dictionary as their last argument to customize the ingestion process.
+All three functions accept an optional dictionary as their last argument to customize the ingestion process.
 
 ### Common parameters
 
 | Key | Default | Description |
 | --- | ---: | --- |
 | `letters` | `"A-Z"` | Restricts ingestion to symbols whose first letter falls within the specified range (e.g., `"K-N"`). |
-| `includetestsymbols` | `0b` | If `1b`, includes instruments flagged as test symbols in the `master` PSV. |
 | `batchsize` | `10 000 000` | Number of rows processed per chunk. Set to `0` to read the entire file in one pass for faster throughput if RAM permits. |
+| `tbls` | ``` `master`trade`quote ``` | Tables to process. |
+| `includetestsymbols` | `0b` | If `1b`, includes instruments flagged as test symbols in the `master` PSV. |
 | `logger` | logger created by `.logger.createLog[]` of the [KX log module](https://code.kx.com/kdb-x/modules/logging/overview.html) | Logger used for status updates during the ingestion process. |
 
 ### parseToDisk extra parameters
@@ -154,10 +194,17 @@ Both `parseToDisk` and `parseToMemory` accept an optional dictionary as their la
 Sorting by `sym` and having a parted attribute on `sym`:
 
 ```q
-parseToMemory["/tmp/nysetaqpsv"; 2025.10.02; ([letters: "Y-Z"; sortcols: `sym; symattr: `p])]
+(trade; quote; master; exnames): parseToMemory["/tmp/nysetaqpsv"; 2025.10.02; ([letters: "Y-Z"; sortcols: `sym; symattr: `p])]
 ```
 
 The original data is sorted by time within each symbol, so sorting by `sym` actually means sorting by `sym` and `time`.
+
+### parseToTP extra parameters
+
+| Key | Default | Description |
+| --- | ---: | --- |
+| `starttime` | `0D04:00` | Records before `starttime` are ignored. |
+
 
 ## Performance Notes
 
