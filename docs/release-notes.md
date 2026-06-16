@@ -2,6 +2,14 @@
 
 _This document provides the version history of the KDB-X Taq Module, detailing released versions, fixes, and improvements._
 
+## 1.3.1
+
+**Release Date**: 2026-06-17
+
+### Fixes and Improvements
+
+- New function `getSchemas` to get the schema of `master`, `trade` and `quote` tables.
+
 ## 1.3.0
 
 **Release Date**: 2026-05-19

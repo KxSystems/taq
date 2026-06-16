@@ -11,7 +11,7 @@
 //    * option to store tables in memory instead of on disk
 //    * improved logging
 
-\l ::schema.q
+\l ::inputSchema.q
 \l ::converters.q
 
 DEFAULTS_COMMON: ([letters:"A-Z"; includetestsymbols: 0b; batchsize: 10*1000*1000; tbls: `trade`quote`master])
@@ -299,4 +299,4 @@ parseToTP: ('[{[params]
 
   };enlist]);
 
-export: ([parseToMemory; parseToDisk; parseToTP])
+export: ([parseToMemory; parseToDisk; parseToTP]), use `.schema
