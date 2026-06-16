@@ -55,14 +55,15 @@ The following table estimates the data footprint by `SIZE` parameter:
 
 ## Quickstart
 
-This module exposes three primary functions:
+This module exposes four functions:
 
 - **`parseToDisk`** — parses TAQ data and persists it into a date-partitioned HDB on disk.
 - **`parseToMemory`** — parses TAQ data and loads it directly into in-memory tables, suitable for RDB-style workflows.
 - **`parseToTP`** — parses TAQ data and sends batches asynchronously to a TP via `.u.upd`, as if data arrived from the exchange. Input PSV files must be [sorted by time](#for-replay-sorting-by-time).
+- **`getSchemas`** - return the schemas of `master`, `trade` and `quote` tables. Useful for [replaying to tickerplant](#parsetotp).
 
 ```q
-([parseToMemory; parseToDisk; parseToTP]): use `kx.taq
+taq: use `kx.taq
 ```
 
 ### parseToDisk
@@ -72,7 +73,7 @@ This module exposes three primary functions:
 To create the `trade`, `quote`, `master` tables, and `exnames` dictionary for October 2, 2025, and save them to `/tmp/kdbdb`:
 
 ```q
-parseToDisk["/tmp/nysetaqpsv"; 2025.10.02; "/tmp/kdbdb"]
+taq.parseToDisk["/tmp/nysetaqpsv"; 2025.10.02; "/tmp/kdbdb"]
 ```
 
 Once the data is generated, you can load it into a q session with 4 [worker threads](https://code.kx.com/kdb-x/reference/syscmds.html#s-number-of-secondary-threads) using the following command (or by `\l` in a running q session):
@@ -111,7 +112,7 @@ AMZN 0D04:00:00.010640417 219.98 100  219.41 219.98
 To load the `trade`, `quote`, `master` tables, and `exnames` dictionary for October 2, 2025, into memory:
 
 ```q
-(trade; quote; master; exnames): parseToMemory["/tmp/nysetaqpsv"; 2025.10.02]
+(trade; quote; master; exnames): taq.parseToMemory["/tmp/nysetaqpsv"; 2025.10.02]
 ```
 
 The resulting `trade` and `quote` tables are sorted by `time` and carry a grouped attribute on `sym`, matching the layout of a typical RDB. Unlike the HDB tables produced by `parseToDisk`, in-memory tables do not include a `date` column.
@@ -142,21 +143,31 @@ Storing a full day of NYSE TAQ data in memory is RAM-intensive. The table below 
 Input PSV files must be [sorted by time](#for-replay-sorting-by-time) for proper replay of the data. `parseToTP` requires the tickerplant address as a third parameter:
 
 ```q
-parseToTP["/tmp/nysetaqpsv"; 2025.10.02; `:localhost:5010; ([batchsize: 5000])]
+taq.parseToTP["/tmp/nysetaqpsv"; 2025.10.02; `:localhost:5010; ([batchsize: 5000])]
 ```
 
 The third parameter is passed directly to [hopen](https://code.kx.com/kdb-x/ref/hopen.html), so you can also pass a port number if the TP is on the same box:
 
 ```q
-parseToTP["/tmp/nysetaqpsv"; 2025.10.02; 5010; ([batchsize: 5000])]
+taq.parseToTP["/tmp/nysetaqpsv"; 2025.10.02; 5010; ([batchsize: 5000])]
 ```
 
-`parseToTP` calls `.u.upd` on the remote q process with table name as the first parameter and the records (as a table) as the second parameter. The simplest way to test this function is to start a q process on the provided port (5010) and define `.u.upd` as `upsert`:
+`parseToTP` calls `.u.upd` on the remote q process with table name as the first parameter and the records (as a table) as the second parameter. The simplest way to test this function is to start a q process on the provided port (5010) and define `.u.upd` as `upsert` or `insert`:
 
 ```bash
 $ q -p 5010
 ...
 q).u.upd: upsert
+```
+
+In classic kdb+ tick, the tables are predefined. You can get the schema by `taq.getSchemas[]`
+
+```bash
+$ q -p 5010
+...
+q)taq: use `taq
+q)(master;trade;quote): taq.getSchemas[]
+q).u.upd: insert
 ```
 
 `parseToTP` publishes quotes after trades. If you prefer simultaneous publication, start two kdb+ processes and use the `tbls` optional parameter to control which tables each process publishes.
@@ -194,7 +205,7 @@ All three functions accept an optional dictionary as their last argument to cust
 Sorting by `sym` and having a parted attribute on `sym`:
 
 ```q
-(trade; quote; master; exnames): parseToMemory["/tmp/nysetaqpsv"; 2025.10.02; ([letters: "Y-Z"; sortcols: `sym; symattr: `p])]
+(trade; quote; master; exnames): taq.parseToMemory["/tmp/nysetaqpsv"; 2025.10.02; ([letters: "Y-Z"; sortcols: `sym; symattr: `p])]
 ```
 
 The original data is sorted by time within each symbol, so sorting by `sym` actually means sorting by `sym` and `time`.
@@ -205,8 +216,7 @@ The original data is sorted by time within each symbol, so sorting by `sym` actu
 | --- | ---: | --- |
 | `starttime` | `0D04:00` | Records before `starttime` are ignored. |
 
-
 ## Performance Notes
 
-* **Multithreading**: The PSV parsing engine is multithreaded. Start your ingestion process with the `-s` flag (e.g., `q -s 8`) to make use of available CPU cores.
-* **Memory Management**: If you encounter memory pressure, reduce `batchsize` in the options dictionary. Conversely, increasing it (or setting it to `0`) will speed up the process.
+- **Multithreading**: The PSV parsing engine is multithreaded. Start your ingestion process with the `-s` flag (e.g., `q -s 8`) to make use of available CPU cores.
+- **Memory Management**: If you encounter memory pressure, reduce `batchsize` in the options dictionary. Conversely, increasing it (or setting it to `0`) will speed up the process.
