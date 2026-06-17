@@ -5,11 +5,12 @@
 * Logging: The module generates status and error logs. By default, it utilizes the KX Logging framework. If a custom logger is not provided via the configuration parameters, ensure the [KX logging](https://code.kx.com/kdb-x/modules/logging/overview.html) is installed and available in your [QPATH](https://code.kx.com/kdb-x/modules/module-framework/quickstart.html#search-path). You can install `logging` and `printf` by
 
 ```bash
-LATEST=$(curl -s https://api.github.com/repos/KxSystems/logging/releases/latest | grep 'tag_name' | cut -d '"' -f 4) \
+LATEST=$(curl -sI https://github.com/KxSystems/logging/releases/latest | awk -F'tag/' '/ocation:/{print $2}' | tr -d '\r') && \
 curl -L https://github.com/KxSystems/logging/archive/refs/tags/$LATEST.zip -o logging.zip && \
 unzip -j logging.zip "logging-$LATEST/log.q" -d $HOME/.kx/mod/kx/ && \
 rm logging.zip
-LATEST=$(curl -s https://api.github.com/repos/KxSystems/printf/releases/latest | grep 'tag_name' | cut -d '"' -f 4) \
+
+LATEST=$(curl -sI https://github.com/KxSystems/printf/releases/latest | awk -F'tag/' '/ocation:/{print $2}' | tr -d '\r') && \
 curl -L https://github.com/KxSystems/printf/archive/refs/tags/$LATEST.zip -o printf.zip && \
 unzip -j printf.zip "printf-$LATEST/printf.q" -d $HOME/.kx/mod/kx/ && \
 rm printf.zip
