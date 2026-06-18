@@ -11,14 +11,14 @@ This module provides high-performance utilities for parsing [NYSE TAQ (Trade and
 The module requires NYSE TAQ master, trade, and quote PSV files. These can be downloaded from the [NYSE FTP server](https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/) and extracted into a local directory.
 
 > [!WARNING]
-> The NYSE TAQ files are large. Depending on your network bandwidth, downloading them may take a long time and may require tens of gigabytes of disk space. Consider passing `--size small` to `getCSVs.sh`.
+> The NYSE TAQ files are large. Depending on your network bandwidth, downloading them may take a long time and may require tens of gigabytes of disk space. Consider passing `--size small` to `getPSVs.sh`.
 
-A utility script, `getCSVs.sh` (located in the `scripts` directory), is provided to automate the download and extraction process via `curl`. To download and unzip all available TAQ files to `/tmp/nysetaqpsv`:
+A utility script, `getPSVs.sh` (located in the `scripts` directory), is provided to automate the download and extraction process using `curl`, `gawk` and `gunzip`. To download and unzip all available TAQ files to `/tmp/nysetaqpsv`:
 
 ```bash
 # Extract available dates from the NYSE FTP
-DATES=$(curl -s "https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/" |  grep -oE '"EQY_US_ALL_TRADE_[0-9]{8}\.gz"' |  grep -oE '[0-9]{8}' |paste -sd,)
-./scripts/getCSVs.sh --csvdir /tmp/nysetaqpsv --dates "$DATES"
+DATES=$(curl -s "https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/" |  grep -oE '"EQY_US_ALL_TRADE_[0-9]{8}\.gz"' |  grep -oE '[0-9]{8}' |paste -sd, -)
+./scripts/getPSVs.sh --csvdir /tmp/nysetaqpsv --dates "$DATES"
 ```
 
 To manage disk space and bandwidth, you can restrict the download scope by:
@@ -29,7 +29,7 @@ To manage disk space and bandwidth, you can restrict the download scope by:
 ```bash
 # Example: Download PSVs for only a single date
 DATES=$(curl -s https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/| grep -oE 'EQY_US_ALL_TRADE_2[0-9]{7}' | grep -oE '2[0-9]{7}'|head -1)
-./scripts/getCSVs.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size small
+./scripts/getPSVs.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size small
 ```
 
 ### For replay: sorting by time

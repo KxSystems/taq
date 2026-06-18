@@ -1,17 +1,12 @@
-function get_letters () {
-    local size=$1
-    case "$size" in
-      "full")   echo 'A-Z' ;;
-      "large")  echo 'A-H' ;;
-      "medium") echo 'I-I' ;;
-      "small")  echo 'Z-Z' ;;
-    esac
-}
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# SED_INPLACE, DATEARRAY, LETTERS and LETTERARRAY are consumed by the scripts
+# that source this file, so they read as "unused" here.
+# shellcheck disable=SC2034
 
-function getFilename() {
-    local type=$1 letter=$2 date=$3
-    echo "${type}_US_ALL_${letter}_${date}.gz"
-}
+script_dir=$(dirname "${BASH_SOURCE[0]}")
+# shellcheck source=util.sh
+source "${script_dir}/util.sh"
 
 # BSD sed (macOS) requires an explicit empty string after -i; GNU sed does not accept it as a separate arg
 if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -51,4 +46,12 @@ IFS=',' read -r -a DATEARRAY <<< "$DATES_RAW"
 
 
 LETTERS=$(get_letters "$SIZE")
-LETTERARRAY=($(eval echo "{${LETTERS:0:1}..${LETTERS:2:1}}"))
+
+# LETTERS is a "<start>-<end>" range, e.g. "A-Z". Expand it to an array of
+# single characters without eval by walking the character codes.
+IFS='-' read -r start_letter end_letter <<< "$LETTERS"
+LETTERARRAY=()
+for ((code = $(printf '%d' "'${start_letter}"); code <= $(printf '%d' "'${end_letter}"); code++)); do
+    printf -v letter '%b' "$(printf '\\%03o' "$code")"
+    LETTERARRAY+=("$letter")
+done

@@ -31,7 +31,7 @@ Add the export statement to your `bashrc` or equivalent to persist across sessio
 Now from anywhere you can import the taq library
 
 ```q
-q)([parseToDisk]): taq:use`kx.taq;
+q)taq: use `kx.taq;
 ```
 
 See [reference.md](reference.md) to learn how to use the module.
