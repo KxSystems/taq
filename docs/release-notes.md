@@ -24,7 +24,7 @@ _This document provides the version history of the KDB-X Taq Module, detailing r
 
 ### Fixes and Improvements
 
-- **getPSVs.sh** improvements:
+- **getCSVs.sh** improvements:
   - disk-efficient (in-place) file manipulation.
   - `master` and `trade` file filtering based on the first letter
 - **NUC**: more flexible `parseToMemory`:
