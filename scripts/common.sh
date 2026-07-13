@@ -21,7 +21,7 @@ DATES_RAW=""
 SIZE="full"
 
 usage() {
-    echo "Usage: $0 --csvdir <dir> --dates <date1,date2,...> [--size small|medium|large|full]"
+    echo "Usage: $0 --csvdir <dir> --dates <date1,date2,...> [--size small|medium|large|xlarge|full]"
     exit 1
 }
 
@@ -37,15 +37,11 @@ done
 [[ -z "$CSVDIR" ]]    && { echo "Error: --csvdir is required"; usage; }
 [[ -z "$DATES_RAW" ]] && { echo "Error: --dates is required";  usage; }
 
-case "$SIZE" in
-    small|medium|large|full) ;;
-    *) echo "Error: --size must be one of: small, medium, large, full"; usage ;;
-esac
-
 IFS=',' read -r -a DATEARRAY <<< "$DATES_RAW"
 
-
-LETTERS=$(get_letters "$SIZE")
+# get_letters is the single source of truth for the accepted SIZE values; it
+# prints the specifics via die, and usage() adds the invocation summary.
+LETTERS=$(get_letters "$SIZE") || usage
 
 # LETTERS is a "<start>-<end>" range, e.g. "A-Z". Expand it to an array of
 # single characters without eval by walking the character codes.

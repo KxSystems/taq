@@ -42,16 +42,17 @@ To replay NYSE TAQ data to TP, input PSV files must be sorted by time. `./script
 ./scripts/sort.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size small
 ```
 
-### Dataset Statistics (Reference: 2025.07.01)
+### Dataset Statistics (Reference: 2026.04.01)
 
 The following table estimates the data footprint by `SIZE` parameter:
 
-| `SIZE` | Symbol Range (First Letter) | Uncompressed PSVs Size | Uncompressed HDB Size | Symbol Count | Quote Count |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `small` | Z | ~10 GB | ~0.3 GB | 246 | 4,041,795 |
-| `medium` | I | ~20 GB | ~8.1 GB | 1,313 | 125,442,373 |
-| `large` | A-H | ~51 GB | ~36 GB | 10,693 | 516,394,615 |
-| `full` | A-Z | ~133 GB | ~106 GB | 24,377 | 1,570,602,937 |
+| `SIZE` | Symbol first letters | HDB size (GB) | Nr of quote symbols | Nr of quotes |
+| --- | --- | ---: | ---: | ---: |
+| `small` | Z | 1 | 259 | 9,422,051 |
+| `medium` | X-Z | 9 | 909 | 143,336,607 |
+| `large` | T-Z | 39 | 4,018 | 588,006,863 |
+| `xlarge` | O-Z | 85 | 9,614 | 1,212,311,903 |
+| `full` | A-Z | 186 | 26,396 | 2,860,612,301 |
 
 ## Quickstart
 

@@ -19,6 +19,7 @@ require_commands curl gunzip gawk
 get_CSVs() {
   local date="$1"
   local letter qfname tfname mfname letters
+  local gunzip_pids=()
 
   echo "Fetching gzipped CSV files for date ${date}"
   mkdir -p "${CSVDIR}"
@@ -26,17 +27,18 @@ get_CSVs() {
 
   for letter in "${LETTERARRAY[@]}"; do
     qfname=$(get_filename "SPLITS" "BBO_${letter}" "${date}")
-    if [[ -f "${qfname%.*}" ]]; then
+    if [[ -f "${qfname%.*}" || -f "${qfname%.*}.psv" ]]; then
       echo "${qfname} was already downloaded and unzipped. Skipping download."
     else
       curl -C - -O "${URLPREFIX}${qfname}"
       echo "Unzipping downloaded file in the background"
       gunzip "${qfname}" &
+      gunzip_pids+=("$!")
     fi
   done
 
   tfname=$(get_filename "EQY" "TRADE" "${date}")
-  if [[ -f "${tfname%.*}" ]]; then
+  if [[ -f "${tfname%.*}" || -f "${tfname%.*}.psv" ]]; then
     echo "${tfname} was already downloaded and unzipped. Skipping download."
   else
     curl -C - -O "${URLPREFIX}${tfname}"
@@ -45,7 +47,7 @@ get_CSVs() {
   fi
 
   mfname=$(get_filename "EQY" "REF_MASTER" "${date}")
-  if [[ -f "${mfname%.*}" ]]; then
+  if [[ -f "${mfname%.*}" || -f "${mfname%.*}.psv" ]]; then
     echo "${mfname} was already downloaded and unzipped. Skipping download."
   else
     curl -C - -O "${URLPREFIX}${mfname}"
@@ -53,15 +55,22 @@ get_CSVs() {
     gunzip "${mfname}"
   fi
 
-  wait
+  # A bare `wait` always returns 0, so a failed background gunzip would slip
+  # past `set -e`; wait on each PID individually and abort on any failure.
+  local pid
+  for pid in "${gunzip_pids[@]}"; do
+    wait "${pid}" || die "A background gunzip failed while fetching ${date}" 1
+  done
 
   # TODO: add check if last line starts with 'END'
+  # Only files that were (re)downloaded exist unzipped without the .psv
+  # extension; skip any that already have a .psv from a previous run.
   echo "Removing last lines and adding proper extension"
-  "${SED_INPLACE[@]}" '$d' "${mfname%.*}" && mv "${mfname%.*}" "${mfname%.*}.psv"
-  "${SED_INPLACE[@]}" '$d' "${tfname%.*}" && mv "${tfname%.*}" "${tfname%.*}.psv"
+  [[ -f "${mfname%.*}" ]] && "${SED_INPLACE[@]}" '$d' "${mfname%.*}" && mv "${mfname%.*}" "${mfname%.*}.psv"
+  [[ -f "${tfname%.*}" ]] && "${SED_INPLACE[@]}" '$d' "${tfname%.*}" && mv "${tfname%.*}" "${tfname%.*}.psv"
   for letter in "${LETTERARRAY[@]}"; do
     qfname=$(get_filename "SPLITS" "BBO_${letter}" "${date}")
-    "${SED_INPLACE[@]}" '$d' "${qfname%.*}" && mv "${qfname%.*}" "${qfname%.*}.psv"
+    [[ -f "${qfname%.*}" ]] && "${SED_INPLACE[@]}" '$d' "${qfname%.*}" && mv "${qfname%.*}" "${qfname%.*}.psv"
   done
 
   letters=$(IFS=''; printf '%s' "${LETTERARRAY[@]}")

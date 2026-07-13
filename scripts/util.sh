@@ -12,16 +12,20 @@ die() {
 
 get_letters() {
   local size="$1"
-  local valid_sizes=("full" "large" "medium" "small")
+  local valid_sizes=("full" "xlarge" "large" "medium" "small")
 
   if [[ " ${valid_sizes[*]} " != *" ${size} "* ]]; then
+    # die returns (rather than exits) when sourced, so propagate the failure
+    # out of get_letters explicitly for callers that check its status.
     die "Unknown SIZE: '$size'. Valid options are: ${valid_sizes[*]}" 1
+    return 1
   fi
 
   case "$size" in
     "full")   echo 'A-Z' ;;
-    "large")  echo 'A-H' ;;
-    "medium") echo 'I-I' ;;
+    "xlarge") echo 'O-Z' ;;
+    "large")  echo 'T-Z' ;;
+    "medium") echo 'X-Z' ;;
     "small")  echo 'Z-Z' ;;
   esac
 }
