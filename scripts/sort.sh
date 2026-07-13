@@ -13,7 +13,7 @@ sort_by_time() {
     f="${CSVDIR}/$(get_filename "EQY" "TRADE" "${date}")"
     f="${f%.*}.psv"
     echo "Sorting trade file by time: ${f}"
-    { head -1 "$f"; tail -n +2 "$f" | sort -t'|' -k1,1; } > "${f}.tmp" && mv "${f}.tmp" "$f"
+    { head -n 1 "$f"; tail -n +2 "$f" | LC_ALL=C sort -t'|' -k1,1; } > "${f}.tmp" && mv "${f}.tmp" "$f"
 
     merged="${CSVDIR}/EQY_US_ALL_BBO_${date}.psv"
 
@@ -30,12 +30,12 @@ sort_by_time() {
     tmpdir=$(mktemp -d "${CSVDIR}/.tmp_XXXXXX")
     for f in "${quote_files[@]}"; do
         echo "Sorting quote file by time: ${f}"
-        tail -n +2 "$f" | sort -t'|' -k1,1 > "${tmpdir}/$(basename "$f")"
+        tail -n +2 "$f" | LC_ALL=C sort -t'|' -k1,1 > "${tmpdir}/$(basename "$f")"
         rm "$f"
     done
 
     echo "Merging quote files into: ${merged}"
-    sort -m -t'|' -k1,1 "${tmpdir}"/* >> "$merged"
+    LC_ALL=C sort -m -t'|' -k1,1 "${tmpdir}"/* >> "$merged"
     rm -rf "$tmpdir"
 }
 
