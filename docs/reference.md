@@ -11,7 +11,7 @@ This module provides high-performance utilities for parsing [NYSE TAQ (Trade and
 The module requires NYSE TAQ master, trade, and quote PSV files. These can be downloaded from the [NYSE FTP server](https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/) and extracted into a local directory.
 
 > [!WARNING]
-> The NYSE TAQ files are large. Depending on your network bandwidth, downloading them may take a long time and may require tens of gigabytes of disk space. Consider passing `--size small` to `getPSVs.sh`.
+> The NYSE TAQ files are large. Depending on your network bandwidth, downloading them may take a long time and may require tens of gigabytes of disk space. Consider passing `--size tiny` or `--size small` to `getPSVs.sh`.
 
 A utility script, `getPSVs.sh` (located in the `scripts` directory), is provided to automate the download and extraction process using `curl`, `gawk` and `gunzip`. To download and unzip all available TAQ files to `/tmp/nysetaqpsv`:
 
@@ -29,7 +29,7 @@ To manage disk space and bandwidth, you can restrict the download scope by:
 ```bash
 # Example: Download PSVs for only a single date
 DATES=$(curl -s https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/| grep -oE 'EQY_US_ALL_TRADE_2[0-9]{7}' | grep -oE '2[0-9]{7}'|head -1)
-./scripts/getPSVs.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size small
+./scripts/getPSVs.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size tiny
 ```
 
 ### For replay: sorting by time
@@ -39,20 +39,24 @@ To replay NYSE TAQ data to TP, input PSV files must be sorted by time. `./script
 > **Note:** `sort` requires temporary disk space during sorting. If the default `/tmp` directory has insufficient space, set the `TMPDIR` environment variable to a directory with more space before running the script.
 
 ```bash
-./scripts/sort.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size small
+./scripts/sort.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size tiny
 ```
 
 ### Dataset Statistics (Reference: 2026.04.01)
 
-The following table estimates the data footprint by `SIZE` parameter:
+The following table provides some statistics by `SIZE` parameter:
 
-| `SIZE` | Symbol first letters | HDB size (GB) | Nr of quote symbols | Nr of quotes |
-| --- | --- | ---: | ---: | ---: |
-| `small` | Z | 1 | 259 | 9,422,051 |
-| `medium` | X-Z | 9 | 909 | 143,336,607 |
-| `large` | T-Z | 39 | 4,018 | 588,006,863 |
-| `xlarge` | O-Z | 85 | 9,614 | 1,212,311,903 |
-| `full` | A-Z | 186 | 26,396 | 2,860,612,301 |
+| `SIZE` | Symbol first letters | Memory (GB) | Disk (GB) | Nr of quote symbols | Nr of quotes |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `tiny` | Z | 1 | 1 | 259 | 9,422,051 |
+| `small` | X-Z | 17 | 9 | 909 | 143,336,607 |
+| `medium` | T-Z | 70 | 39 | 4,018 | 588,006,863 |
+| `large` | P-Z | 142 | 83 | 8,964 | 1,283,196,520 |
+| `xlarge` | I-Z | 153 | 124 | 15,127 | 1,901,235,410 |
+| `full` | A-Z | 296 | 187 | 26,396 | 2,860,612,301 |
+
+
+Column `Memory (GB)` shows the required memory of trade and quote tables if the data is stored in memory and has grouped attribute. `Disk (GB)` shows the disk requirement of the data with parted attribute.
 
 ## Quickstart
 
@@ -129,15 +133,6 @@ AMZN 0D04:00:00.010379075 219.7  2    219.41 219.98
 AMZN 0D04:00:00.010640417 219.98 100  219.41 219.98
 ...
 ```
-
-Storing a full day of NYSE TAQ data in memory is RAM-intensive. The table below shows approximate memory requirements by `SIZE` parameter, measured against data from 2025.10.02.
-
-| `SIZE` | Symbol Range (First Letter) | Memory need |
-| --- | ---: | ---: |
-| `small` | Z | ~2 GB |
-| `medium` | I | ~14 GB |
-| `large` | A-H | ~79 GB |
-| `full` | A-Z | ~170 GB |
 
 ### parseToTP
 
