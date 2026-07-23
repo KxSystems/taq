@@ -1,0 +1,9 @@
+Symbol|Security_Description|CUSIP|Security_Type|SIP_Symbol|Old_Symbol|Test_Symbol_Flag|Listed_Exchange|Tape|Unit_Of_Trade|Round_Lot|NYSE_Industry_Code|Shares_Outstanding|Halt_Delay_Reason|Specialist_Clearing_Agent|Specialist_Clearing_Number|Specialist_Post_Number|Specialist_Panel|TradedOnNYSEMKT|TradedOnNASDAQBX|TradedOnNSX|TradedOnFINRA|TradedOnISE|TradedOnEdgeA|TradedOnEdgeX|TradedOnNYSETexas|TradedOnNYSE|TradedOnArca|TradedOnNasdaq|TradedOnCBOE|TradedOnPSX|TradedOnBATSY|TradedOnBATS|TradedOnIEX|Tick_Pilot_Indicator|Effective_Date|TradedOnLTSE|TradedOnMEMX|TradedOnMIAX|TradedOn24X
+YCY|AA Mission Acquisition Corp. II|G1000S109|A|YCY||N|N|A|1|100||11.86||CDRG|8430|6|U|0|0|0|0|0|0|0|0|1|0|0|0|0|0|0|0||20251029|0|0|0|0
+YHNA U|YHN Acquisition I Limited Unit|G1514D119|R|YHNAU||N|Q|C|1|100||0||||||0|0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|||0|0|0|0
+ZEOW W|Zeo Energy Corporation Warrants|98944F117|C|ZEOWW||N|Q|C|1|100||31.2||||||0|0|0|1|0|0|0|0|0|0|1|0|0|0|0|0|||0|0|1|0
+ZEXIT|IEX TEST SYMBOL||A|ZEXIT||Y|V|B|1|100||||||||0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|1|||0|0|0|0
+ZIEXT|IEX TEST SYMBOL||A|ZIEXT||Y|V|B|1|100||||||||0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|1|||0|0|0|0
+ZKPU|Lafayette Digital Acquisition Corp. I Unit|G5345D123|R|ZKPU||N|Q|C|1|100||0||||||0|0|0|1|0|0|0|0|0|0|1|0|0|0|0|0|||0|0|0|0
+ZOOZ W|ZOOZ Strategy Ltd. Warrant|M2573A197|C|ZOOZW||N|Q|C|1|100||12.15||||||0|0|0|1|0|0|0|0|0|1|1|0|0|0|0|0|||0|0|0|0
+ZXIET|IEX TEST SYMBOL||A|ZXIET||Y|V|B|1|100||||||||0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|1|||0|0|0|0

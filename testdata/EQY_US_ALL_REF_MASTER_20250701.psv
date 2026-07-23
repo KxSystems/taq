@@ -1,5 +1,0 @@
-Symbol|Security_Description|CUSIP|Security_Type|SIP_Symbol|Old_Symbol|Test_Symbol_Flag|Listed_Exchange|Tape|Unit_Of_Trade|Round_Lot|NYSE_Industry_Code|Shares_Outstanding|Halt_Delay_Reason|Specialist_Clearing_Agent|Specialist_Clearing_Number|Specialist_Post_Number|Specialist_Panel|TradedOnNYSEMKT|TradedOnNASDAQBX|TradedOnNSX|TradedOnFINRA|TradedOnISE|TradedOnEdgeA|TradedOnEdgeX|TradedOnNYSETexas|TradedOnNYSE|TradedOnArca|TradedOnNasdaq|TradedOnCBOE|TradedOnPSX|TradedOnBATSY|TradedOnBATS|TradedOnIEX|Tick_Pilot_Indicator|Effective_Date|TradedOnLTSE|TradedOnMEMX|TradedOnMIAX
-YHGJ|Yunhong Green CTI Ltd. Common Stock|98873Q100|A|YHGJ||N|Q|C|1|100||26.22||||||0|0|0|1|0|0|1|0|0|1|1|0|0|1|0|0|||0|1|0
-YXT|YXT.COM GROUP HOLDING LIMITED American Depository Shares|988740106|H|YXT||N|Q|C|1|100||163.30||||||0|0|0|1|0|0|1|0|0|1|1|0|0|1|0|1|||0|0|0
-ZEXIT|IEX TEST SYMBOL||A|ZEXIT||Y|V|B|1|100||0||||||0|0|0|1|0|0|0|0|0|1|0|0|0|0|0|1|||0|0|0
-ZTAX|X-Square Municipal Income ETF|98422R104|ETF|ZTAX||N|P|B|1|100|416A|.18||||||0|0|0|1|0|0|0|0|0|1|0|0|0|0|0|0||20230519|0|0|0
