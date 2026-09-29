@@ -1,5 +1,18 @@
 # taq kdb-x installation
 
+## Install module with qmamba
+
+qmamba is a package manager for kdb-x. It is currently available in a private preview capacity. You are welcome to try it and provide feedback.
+Follow the install instructions for [qmamba](https://github.com/KxSystems/qmamba/blob/main/README.md#installation).
+
+```q
+qmamba:use`kx.qmamba
+qmamba.create "myenv"
+qmamba.activate "myenv"
+qmamba.install `SPECS`CHANNEL!(enlist "q-kx-taq";enlist"kx")
+.taq:use`kx.taq
+```
+
 ## Dependencies
 
 * Logging: The module generates status and error logs. By default, it utilizes the KX Logging framework. If a custom logger is not provided via the configuration parameters, ensure the [KX logging](https://code.kx.com/kdb-x/modules/logging/overview.html) is installed and available in your [QPATH](https://code.kx.com/kdb-x/modules/module-framework/quickstart.html#search-path). You can install `logging` and `printf` by
@@ -18,7 +31,7 @@ rm printf.zip
 
 ## Installation
 
-[`taq.q`](../taq.q) is written as a module, under kdb-x's module framework. Though modules can be loaded from anywhere if added to your [`$QPATH`](https://code.kx.com/kdb-x/modules/module-framework/quickstart.html#search-path), we recommend installing to the `$HOME/.kx/mod/kx` folder. This is to avoid name clashes with other user defined modules, as well as providing a location for other KX modules to cross reference each other (e.g. the taq module references `..logging`)
+[`taq`](../taq/init.q) is written as a module, under kdb-x's module framework. Though modules can be loaded from anywhere if added to your [`$QPATH`](https://code.kx.com/kdb-x/modules/module-framework/quickstart.html#search-path), we recommend installing to the `$HOME/.kx/mod/kx` folder. This is to avoid name clashes with other user defined modules, as well as providing a location for other KX modules to cross reference each other (e.g. the taq module references `..logging`)
 
 ```bash
 export QPATH="$QPATH:$HOME/.kx/mod"

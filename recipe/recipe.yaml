@@ -1,0 +1,32 @@
+context:
+  version: "1.3.2"
+
+package:
+  name: q-kx-taq
+  version: ${{ version }}
+
+source:
+  path: ..
+  filter:
+    exclude:
+      - recipe/**
+
+build:
+  number: 0
+  noarch: generic
+  script:
+    - mkdir -p $PREFIX/lib/q/mod/kx
+    - cp -r taq $PREFIX/lib/q/mod/kx/
+
+requirements:
+  run:
+    - q-kx-printf
+    - q-kx-log
+
+
+tests:
+  - script:
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/converters.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/init.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/inputSchema.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/schema.q
