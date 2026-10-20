@@ -1,5 +1,5 @@
 context:
-  version: "1.3.2"
+  version: ${{ env.get("PKG_VERSION", default="0.0.0") }}
 
 package:
   name: q-kx-taq
@@ -23,6 +23,15 @@ requirements:
     - q-kx-printf
     - q-kx-log
 
+about:
+  homepage: https://github.com/KxSystems/taq
+  repository: https://github.com/KxSystems/taq
+  documentation: https://github.com/KxSystems/taq/blob/main/docs/reference.md
+  license: Apache-2.0
+  license_file: LICENSE
+  summary: Parses NYSE TAQ psv files and persists the result in kdb+ format.
+  description: >-
+    The kdb-x taq module parses NYSE TAQ psv files and persists result in kdb+ format.
 
 tests:
   - script:
