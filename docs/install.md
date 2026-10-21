@@ -15,6 +15,7 @@ qmamba.install `SPECS`CHANNEL!(enlist "q-kx-taq";enlist"kx")
 
 ## Dependencies
 
+* OS: `streamToPubSub` uses the `OS` module, which is installed by default by recent KDB-X installers. If the `OS` module is not installed, update your KDB-X environment to pick up the latest changes.
 * Logging: The module generates status and error logs. By default, it utilizes the KX Logging framework. If a custom logger is not provided via the configuration parameters, ensure the [KX logging](https://code.kx.com/kdb-x/modules/logging/overview.html) is installed and available in your [QPATH](https://code.kx.com/kdb-x/modules/module-framework/quickstart.html#search-path). You can install `logging` and `printf` by
 
 ```bash

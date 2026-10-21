@@ -1,0 +1,24 @@
+name: q-kx-taq
+description: >-
+  The kdb-x taq module parses NYSE TAQ psv files and persists result in kdb+ format.
+homepage: https://github.com/KxSystems/taq
+namespace: kx.taq
+
+source:
+  repo: https://github.com/KxSystems/taq
+  ref: 1.3.2
+  path: .
+
+license: Apache-2.0
+
+maintainers:
+  - github: KxSystems
+
+platforms:
+  - linux
+  - linux-arm
+  - mac
+  - mac-arm
+
+compatibility:
+  kdbx: ">=5.0.0"

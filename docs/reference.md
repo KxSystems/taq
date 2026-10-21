@@ -4,7 +4,14 @@ This module provides high-performance utilities for parsing [NYSE TAQ (Trade and
 
 - persisted into a date-partitioned kdb+ database (HDB)
 - loaded into in-memory tables (RDB)
-- replayed into a [tickerplant](https://code.kx.com/q/architecture/tickq/) (TP)
+- streamed to a [tickerplant](https://code.kx.com/q/architecture/tickq/) (TP) or a [Reliable Transport](https://code.kx.com/insights/microservices/rt/) (RT) publisher
+
+<details>
+<summary>Note: OS module dependency</summary>
+
+This module uses the `OS` module, which is installed by default by recent KDB-X installers. If the `OS` module is not installed, update your KDB-X environment to pick up the latest changes.
+
+</details>
 
 ## Prerequisites: Input PSV Files
 
@@ -32,9 +39,9 @@ DATES=$(curl -s https://ftp.nyse.com/Historical%20Data%20Samples/DAILY%20TAQ/| g
 ./scripts/getPSVs.sh --csvdir /tmp/nysetaqpsv --dates "$DATES" --size tiny
 ```
 
-### For replay: sorting by time
+### For streaming: sorting by time
 
-To replay NYSE TAQ data to TP, input PSV files must be sorted by time. `./scripts/sort.sh` sorts trade and individual quote files using the [sort](https://man7.org/linux/man-pages/man1/sort.1.html) command, then merges the quote files into a single large file in linear time via `sort -m`.
+To stream NYSE TAQ data to TP or RT, input PSV files must be sorted by time. `./scripts/sort.sh` sorts trade and individual quote files using the [sort](https://man7.org/linux/man-pages/man1/sort.1.html) command, then merges the quote files into a single large file in linear time via `sort -m`.
 
 > **Note:** `sort` requires temporary disk space during sorting. If the default `/tmp` directory has insufficient space, set the `TMPDIR` environment variable to a directory with more space before running the script.
 
@@ -64,8 +71,8 @@ This module exposes four functions:
 
 - **`parseToDisk`** — parses TAQ data and persists it into a date-partitioned HDB on disk.
 - **`parseToMemory`** — parses TAQ data and loads it directly into in-memory tables, suitable for RDB-style workflows.
-- **`parseToTP`** — parses TAQ data and sends batches asynchronously to a TP via `.u.upd`, as if data arrived from the exchange. Input PSV files must be [sorted by time](#for-replay-sorting-by-time).
-- **`getSchemas`** - return the schemas of `master`, `trade` and `quote` tables. Useful for [replaying to tickerplant](#parsetotp).
+- **`streamToPubSub`** — parses TAQ data and streams it in batches to a TP or RT, as if data arrived from the exchange. Input PSV files must be [sorted by time](#for-streaming-sorting-by-time).
+- **`getSchemas`** - return the schemas of `master`, `trade` and `quote` tables. Useful for [streaming to a tickerplant](#streamtopubsub).
 
 ```q
 taq: use `kx.taq
@@ -134,26 +141,37 @@ AMZN 0D04:00:00.010640417 219.98 100  219.41 219.98
 ...
 ```
 
-### parseToTP
+### streamToPubSub
 
-Input PSV files must be [sorted by time](#for-replay-sorting-by-time) for proper replay of the data. `parseToTP` requires the tickerplant address as a third parameter:
+`streamToPubSub` publishes `master` immediately, then drip-feeds the `trade` and `quote` rows to a running tickerplant (TP) or Reliable Transport (RT), pacing the publishes to match the original inter-event timing. Input PSV files must be [sorted by time](#for-streaming-sorting-by-time).
+
+`streamToPubSub` requires at least three parameters:
+
+| Position | Name | Type | Description |
+| :--- | :--- | :--- | :--- |
+| 0 | source directory | string or symbol | Directory of the PSV files. |
+| 1 | date | date | Date of the PSV files. |
+| 2 | `connH` | int handle or function | Connection handle to publish to. An int handle (e.g. from [hopen](https://code.kx.com/kdb-x/ref/hopen.html)) is treated as a TP connection, and messages are sent asynchronously. Anything else (e.g. an RT publish function) is treated as an RT connection. |
+| 3 (optional) | — | dictionary | [Configuration options](#configuration-options). |
+
+For example, to stream data to a tickerplant listening on port 5010, in batches of 5000 bytes:
 
 ```q
-taq.parseToTP["/tmp/nysetaqpsv"; 2025.10.02; `:localhost:5010; ([batchsize: 5000])]
+tpH: hopen 5010
+taq.streamToPubSub["/tmp/nysetaqpsv"; 2025.10.02; tpH; ([batchsize: 5000])]
+hclose tpH
 ```
 
-The third parameter is passed directly to [hopen](https://code.kx.com/kdb-x/ref/hopen.html), so you can also pass a port number if the TP is on the same box:
-
-```q
-taq.parseToTP["/tmp/nysetaqpsv"; 2025.10.02; 5010; ([batchsize: 5000])]
-```
-
-`parseToTP` calls `.u.upd` on the remote q process with table name as the first parameter and the records (as a table) as the second parameter. The simplest way to test this function is to start a q process on the provided port (5010) and define `.u.upd` as `upsert` or `insert`:
+`streamToPubSub` calls `.u.upd` (or the function set by [`updFn`](#streamtopubsub-extra-parameters)) with the table name as the first parameter and the records (as a table) as the second parameter. The simplest way to test this function is to start a mock TP process on the provided port (5010), that defines a basic `.u.upd`:
 
 ```bash
-$ q -p 5010
-...
-q).u.upd: upsert
+q ./test/mocktp.q -p 5010
+```
+
+Alternatively, stream to a plain q process by passing `insert` as `updFn`:
+
+```q
+taq.streamToPubSub["/tmp/nysetaqpsv"; 2025.10.02; tpH; ([batchsize: 5000; updFn: insert])]
 ```
 
 In classic kdb+ tick, the tables are predefined. You can get the schema by `taq.getSchemas[]`
@@ -161,12 +179,34 @@ In classic kdb+ tick, the tables are predefined. You can get the schema by `taq.
 ```bash
 $ q -p 5010
 ...
-q)taq: use `taq
+q)taq: use `kx.taq
 q)(master;trade;quote): taq.getSchemas[]
 q).u.upd: insert
 ```
 
-`parseToTP` publishes quotes after trades. If you prefer simultaneous publication, start two kdb+ processes and use the `tbls` optional parameter to control which tables each process publishes.
+Stream to a [KX Database Service](https://code.kx.com/kdb-x/services/db-service/introduction.html) via an RT publisher. The tables must be [created](https://code.kx.com/kdb-x/services/db-service/manage-tables.html#create) in DB Service before any data is published to them:
+
+```bash
+$ q startq.q
+q)rtPub: .rt.pub ([path: "/tmp/rtpub"; stream: "data"; cluster: enlist ":localhost:5002"; publisher_id: "taq"])
+q)taq.streamToPubSub["/tmp/nysetaqpsv"; 2025.10.02; rtPub; ([batchsize: 5000])]
+```
+
+You can get `startq.q` by unzipping [`rt.qpk`](https://code.kx.com/insights/1.20/microservices/rt/examples/run-rt-locally.html#publish).
+
+#### Timing
+
+The time columns (`time` and `participantTimestamp`) are shifted as if the data was generated in real-time: the first batch is sent immediately, and each subsequent batch is sent when the current time reaches the (shifted) time of its last row. The schedule is anchored to the first batch, so processing time does not accumulate as drift.
+
+`streamToPubSub` publishes quotes after trades, and the quote stream starts its own clock. If you prefer simultaneous publication, start two kdb+ processes and use the `tbls` optional parameter to control which tables each process publishes.
+
+Use `starttime` and `endtime` to stream a slice of the trading day, for example the closing auction:
+
+```q
+taq.streamToPubSub["/tmp/nysetaqpsv"; 2025.10.02; tpH; ([starttime: 0D15:55; endtime: 0D16:05])]
+```
+
+`streamToPubSub` has no return value; it publishes until every row in the time window has been sent. It is intended for demos rather than stress testing.
 
 ## Configuration Options
 
@@ -177,7 +217,7 @@ All three functions accept an optional dictionary as their last argument to cust
 | Key | Default | Description |
 | --- | ---: | --- |
 | `letters` | `"A-Z"` | Restricts ingestion to symbols whose first letter falls within the specified range (e.g., `"K-N"`). |
-| `batchsize` | `10 000 000` | Number of rows processed per chunk. Set to `0` to read the entire file in one pass for faster throughput if RAM permits. |
+| `batchsize` | `10 000 000` | Number of bytes processed per chunk (minimum `500`). Set to `0` to read the entire file in one pass for faster throughput if RAM permits. For `streamToPubSub`, each chunk is published as one batch. |
 | `tbls` | ``` `master`trade`quote ``` | Tables to process. |
 | `includetestsymbols` | `0b` | If `1b`, includes instruments flagged as test symbols in the `master` PSV. |
 | `logger` | logger created by `.logger.createLog[]` of the [KX log module](https://code.kx.com/kdb-x/modules/logging/overview.html) | Logger used for status updates during the ingestion process. |
@@ -206,11 +246,13 @@ Sorting by `sym` and having a parted attribute on `sym`:
 
 The original data is sorted by time within each symbol, so sorting by `sym` actually means sorting by `sym` and `time`.
 
-### parseToTP extra parameters
+### streamToPubSub extra parameters
 
 | Key | Default | Description |
 | --- | ---: | --- |
 | `starttime` | `0D04:00` | Records before `starttime` are ignored. |
+| `endtime` | `0Wn` | Records after `endtime` are ignored. By default there is no limit. |
+| `updFn` | `` `.u.upd `` | Update function called on the TP or RT side. For a TP connection, a function (e.g. `insert`) is also accepted. |
 
 ## Performance Notes
 

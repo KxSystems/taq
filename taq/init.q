@@ -14,10 +14,12 @@
 \l ::inputSchema.q
 \l ::converters.q
 
+os: use`os;
+
 DEFAULTS_COMMON: ([letters:"A-Z"; includetestsymbols: 0b; batchsize: 10*1000*1000; tbls: `trade`quote`master])
 DEFAULTS_DISK: ([compparam: `master`quote`trade!3#enlist 3#0i; linked:0b])
 DEFAULTS_MEMORY: ([symattr: `g; sortcols: `time])
-DEFAULTS_TOTP: ([starttime: 0D04:00])
+DEFAULTS_PUBSUB: ([starttime: 0D04:00; endtime: 0Wn; updFn: `.u.upd])
 
 // @kind function
 // @fileoverview parses a file and applies necessary conversions to the resulting table
@@ -74,7 +76,7 @@ process: {[fileName:`s; (schema; conv); postparse; batchsize: `j; logger; saveDo
     t: parseAndConvert[fileName; schema; conv; logger];
     logger[`info] "  Enumerating and saving ", string[count t], " rows";
     postparse[t; saveDotD]]
-    ]
+    ];
   logger[`info] "  Data successfully persisted";
   }
 
@@ -88,7 +90,7 @@ processParamsCommon: {[params; paramNr: `j; defaults]
   p: defaults: DEFAULTS_COMMON, defaults;
   if[paramNr = count params;
     if[not 99h ~ type last params; '"Dictionary is expected as last parameter"];
-    unknownParams: (key last params) except key defaults;
+    unknownParams: (key last params) except `logger, key defaults;
     if[count unknownParams; '"Unknown parameter(s): ", "," sv string unknownParams];
     p,: last params];
   logger: $[`logger in key p; p`logger; [
@@ -104,7 +106,7 @@ processParamsCommon: {[params; paramNr: `j; defaults]
   }
 
 processParamsMemory: {[params]
-  if[2>count params; '"Too few parameters passed to parseToDisk. ",
+  if[2>count params; '"Too few parameters passed to parseToMemory. ",
     "At least source directory and date must be provided"];
   (src; date; p; logger): processParamsCommon[params; 3; DEFAULTS_MEMORY];
   if[not p[`symattr] in ``g`p; '"Invalid symattr value. Must be `,`g or `p, got ", string p`symattr];
@@ -130,13 +132,23 @@ processParamsDisk: {[params]
   (src; date; dst; p; logger)
   }
 
-processParamsTP: {[params]
-  if[3>count params; '"Too few parameters passed to parseToTP. ",
-    "At least source directory and date must be provided"];
-  (src; date; p; logger): processParamsCommon[params; 4; DEFAULTS_TOTP];
+tpFire: {[connH:`i; updFn; tableName:`s; rows]
+  neg[connH] (updFn; tableName; rows);
+  neg[connH] (::);
+  }
 
-  tpH: hopen params 2;
-  (src; date; tpH; p; logger)
+RTFire: {[connH; updFn:`s; tableName:`s; rows]
+  connH (updFn; tableName; rows);
+  }
+
+processParamsPubSub: {[params]
+  if[3>count params; '"Too few parameters passed to streamToPubSub. ",
+    "At least source directory, date and connection handle must be provided"];
+  (src; date; p; logger): processParamsCommon[params; 4; DEFAULTS_PUBSUB];
+
+  connH: params 2;
+  fireFn: $[-6h = type connH; tpFire; RTFire][connH; p`updFn];
+  (src; date; fireFn; p; logger)
   }
 
 parsePSVs: {[src:`C; date:`d; p; preparse; postparse; logger]
@@ -256,29 +268,28 @@ parseToDisk: ('[{[params]
 
   };enlist]);
 
-NANO: 1000*1000*1000;
-waitAndFire: {[tpH; tableName; starttime; timecols; rows;]
-  rows: select from rows where time > starttime;
-  if[0 = count rows; :()]; / no rows before start time, skip
+waitAndFire: {[fireFn; tableName:`s; (starttime; endtime); timecols:`S; rows;]
+  rows: select from rows where time within (starttime; endtime);
+  if[0 = count rows; :()]; / no rows in the time window, skip
 
-  if[null offset; offset:: (.z.p-`timestamp$`date$.z.p) - last rows`time];
+  if[null offset; startday:: `timestamp$.z.d; offset:: (.z.p-startday) - last rows`time];
   / adjust time columns as if was generated in real-time
   rows: ![rows; (); 0b; timecols!(+;;offset) each timecols];
-  / 2 msec is system call overhead
-  waittime: -0D00:00:00.002 + (last[rows`time] - lasttn) - .z.p - lastfire;
-  if[0 < waittime; system "sleep ", string (`long$waittime) % NANO];
-  neg[tpH] (".u.upd"; tableName; rows);
-  neg[tpH] (::);
-  lastfire:: .z.p;
-  lasttn:: last rows`time;
+  waittime: (startday + last rows`time) - .z.p;
+  if[0 < waittime; os.sleep waittime];
+  fireFn[tableName; rows];
   }
 
 // @kind function
-// @fileoverview parses and sends NYSE TAQ data to TP in batches real-time.
+// @fileoverview parses NYSE TAQ data and streams it in batches to a ticker plant (TP) or a reliable transport (RT) publisher.
+// The function waits for the time of the last row in each batch before sending it.
+// The time columns are adjusted as if the data was generated in real-time,
+// i.e. the first batch is sent immediately and subsequent batches are sent with a delay corresponding to their time difference from the first batch.
+// Quotes are streamed after trades, each table starting its own real-time clock.
 // @param params {list} parameters:
 //    * source directory (string or symbol)
 //    * date
-//    * TP address (parameter is passed to hopen, so it can be in many formats).
+//    * connection handle: an int handle (e.g. from hopen) to a TP or an RT publisher function (e.g. from .rt.pub).
 //    * optional parameters (in form of a dictionary):
 //       - letters: filter on the first letter of the Symbol, in form START-END, for example A-K. Default is A-Z (all letters).
 //       - includetestsymbols: boolean flag to include test symbols in the output. Default is false (test symbols are excluded).
@@ -286,17 +297,19 @@ waitAndFire: {[tpH; tableName; starttime; timecols; rows;]
 //                    Set to 0 to disable batch processing and process all rows at once (not recommended if you don't have large amount of memory).
 //       - logger: custom logger that implements info method. If not passed then a simple kx.log is used.
 //       - tbls: list of tables to be parsed. Default is `trade`quote`master (all tables).
-parseToTP: ('[{[params]
-  (src; date; tpH; p; logger): processParamsTP[params];
-  preparse: `master`trade`quote!(::), 2#{lastfire:: `timestamp$0; lasttn:: `timespan$0; offset:: 0Nn};
-  postparse: `master`trade`quote!{[tpH;t;] tpH (".u.upd";`master; t)}[tpH],
-    waitAndFire[tpH;`trade; p`starttime; `time`participantTimestamp],
-    waitAndFire[tpH;`quote; p`starttime; `time`participantTimestamp];
+//       - starttime: records before starttime are ignored. Default is 0D04:00.
+//       - endtime: records after endtime are ignored. Default is 0Wn (no limit).
+//       - updFn: update function called on the TP or RT side. Default is `.u.upd.
+streamToPubSub: ('[{[params]
+  (src; date; fireFn; p; logger): processParamsPubSub params;
+  resetClock: {startday:: 0Np; offset:: 0Nn};
+  preparse: `master`trade`quote!(::; resetClock; resetClock);
+  postparse: ([master: {[fireFn;t;] fireFn[`master; t]}[fireFn];
+    trade: waitAndFire[fireFn; `trade; p`starttime`endtime; `time`participantTimestamp];
+    quote: waitAndFire[fireFn; `quote; p`starttime`endtime; `time`participantTimestamp]]);
 
   parsePSVs[src; date; p; preparse; postparse; logger];
 
-  hclose tpH;
-
   };enlist]);
 
-export: ([parseToMemory; parseToDisk; parseToTP]), use `.schema
+export: ([parseToMemory; parseToDisk; streamToPubSub]), use `.schema
