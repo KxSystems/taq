@@ -2,6 +2,15 @@
 
 _This document provides the version history of the KDB-X Taq Module, detailing released versions, fixes, and improvements._
 
+## 2.1.0
+
+**Release Date**: 2026-10-22
+
+### Fixes and Improvements
+
+- Improved schema handling, see submodules `taq.schemas`
+- **NUC**: `getSchemas` is renamed to schemas submodule.
+
 ## 2.0.0
 
 **Release Date**: 2026-10-21

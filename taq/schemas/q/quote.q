@@ -1,0 +1,25 @@
+quote: ([]
+  time: `timespan$();
+  ex: `char$();
+  sym: `symbol$();
+  bid: `real$();
+  bsize: `int$();
+  ask: `real$();
+  asize: `int$();
+  cond: `char$();
+  seq: `int$();
+  nationalBBOIndicator: `char$();
+  finraBBOIndicator: `char$();
+  finraADFMpidIndicator: `char$();
+  corr: `char$();
+  source: `char$();
+  retailInterestIndicator: `char$();
+  shortSaleRestrictionIndicator: `char$();
+  LULDBBOIndicator: `char$();
+  SIPGeneratedMessageIdentifier: `char$();
+  nationalBBOLULDIndicator: `char$();
+  participantTimestamp: `timespan$();
+  FINRAADFTimestamp: `timespan$();
+  FINRAADFMarketParticipantQuoteIndicator: `char$();
+  securityStatusIndicator: `char$()
+  )

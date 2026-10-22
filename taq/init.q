@@ -312,4 +312,4 @@ streamToPubSub: ('[{[params]
 
   };enlist]);
 
-export: ([parseToMemory; parseToDisk; streamToPubSub]), use `.schema
+export: ([parseToMemory; parseToDisk; streamToPubSub])

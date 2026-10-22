@@ -1,0 +1,39 @@
+name: trade
+description: Trade data
+type: partitioned
+sortColsMem: [time]
+sortColsDisk: [sym, time]
+columns:
+  - name: time
+    type: timespan
+    attrMem: sorted
+  - name: ex
+    type: char
+  - name: sym
+    type: symbol
+    attrMem: grouped
+    attrDisk: parted
+  - name: cond
+    type: symbol
+  - name: size
+    type: real
+  - name: price
+    type: real
+  - name: stop
+    type: symbol
+  - name: corr
+    type: short
+  - name: seq
+    type: int
+  - name: tradeId
+    type: long
+  - name: source
+    type: char
+  - name: tradeReportingFacility
+    type: symbol
+  - name: participantTimestamp
+    type: timespan
+  - name: tradeReportingFacilityTRFTimestamp
+    type: timespan
+  - name: tradeThroughExemptIndicator
+    type: boolean

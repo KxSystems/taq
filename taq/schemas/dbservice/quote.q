@@ -1,0 +1,24 @@
+quote: (
+  ([name: "time"; colType: "timespan"]);
+  ([name: "ex"; colType: "char"]);
+  ([name: "sym"; colType: "symbol"]);
+  ([name: "bid"; colType: "real"]);
+  ([name: "bsize"; colType: "int"]);
+  ([name: "ask"; colType: "real"]);
+  ([name: "asize"; colType: "int"]);
+  ([name: "cond"; colType: "char"]);
+  ([name: "seq"; colType: "int"]);
+  ([name: "nationalBBOIndicator"; colType: "char"]);
+  ([name: "finraBBOIndicator"; colType: "char"]);
+  ([name: "finraADFMpidIndicator"; colType: "char"]);
+  ([name: "corr"; colType: "char"]);
+  ([name: "source"; colType: "char"]);
+  ([name: "retailInterestIndicator"; colType: "char"]);
+  ([name: "shortSaleRestrictionIndicator"; colType: "char"]);
+  ([name: "LULDBBOIndicator"; colType: "char"]);
+  ([name: "SIPGeneratedMessageIdentifier"; colType: "char"]);
+  ([name: "nationalBBOLULDIndicator"; colType: "char"]);
+  ([name: "participantTimestamp"; colType: "timespan"]);
+  ([name: "FINRAADFTimestamp"; colType: "timespan"]);
+  ([name: "FINRAADFMarketParticipantQuoteIndicator"; colType: "char"]);
+  ([name: "securityStatusIndicator"; colType: "char"]))

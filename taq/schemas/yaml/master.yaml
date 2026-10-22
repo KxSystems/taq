@@ -1,0 +1,83 @@
+name: master
+description: Security master reference data
+type: basic
+primaryKeys: [sym]
+columns:
+  - name: sym
+    type: symbol
+  - name: description
+    type: string
+  - name: cusip
+    type: symbol
+  - name: securityType
+    type: symbol
+  - name: SIPSymbol
+    type: symbol
+  - name: oldSym
+    type: symbol
+  - name: testFlag
+    type: boolean
+  - name: ex
+    type: char
+  - name: tape
+    type: char
+  - name: unit
+    type: short
+  - name: roundLot
+    type: short
+  - name: NYSEIndustryCode
+    type: symbol
+  - name: sharesOutstanding
+    type: float
+  - name: haltDelayReason
+    type: char
+  - name: specialistClearingAgent
+    type: symbol
+  - name: specialistClearingNumber
+    type: symbol
+  - name: specialistPostNumber
+    type: short
+  - name: specialistPanel
+    type: char
+  - name: tradedOnNYSEMKT
+    type: boolean
+  - name: tradedOnNASDAQBX
+    type: boolean
+  - name: tradedOnNSX
+    type: boolean
+  - name: tradedOnFINRA
+    type: boolean
+  - name: tradedOnISE
+    type: boolean
+  - name: tradedOnEdgeA
+    type: boolean
+  - name: tradedOnEdgeX
+    type: boolean
+  - name: tradedOnNYSETexas
+    type: boolean
+  - name: tradedOnNYSE
+    type: boolean
+  - name: tradedOnArca
+    type: boolean
+  - name: tradedOnNasdaq
+    type: boolean
+  - name: tradedOnCBOE
+    type: boolean
+  - name: tradedOnPSX
+    type: boolean
+  - name: tradedOnBATSY
+    type: boolean
+  - name: tradedOnBATS
+    type: boolean
+  - name: tradedOnIEX
+    type: boolean
+  - name: tickPilotIndicator
+    type: char
+  - name: effectiveDate
+    type: date
+  - name: tradedOnLTSE
+    type: boolean
+  - name: tradedOnMEMX
+    type: boolean
+  - name: tradedOnMIAX
+    type: boolean

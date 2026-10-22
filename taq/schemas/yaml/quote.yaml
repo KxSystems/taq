@@ -1,0 +1,55 @@
+name: quote
+description: Quote data
+type: partitioned
+sortColsMem: [time]
+sortColsDisk: [sym, time]
+columns:
+  - name: time
+    type: timespan
+    attrMem: sorted
+  - name: ex
+    type: char
+  - name: sym
+    type: symbol
+    attrMem: grouped
+    attrDisk: parted
+  - name: bid
+    type: real
+  - name: bsize
+    type: int
+  - name: ask
+    type: real
+  - name: asize
+    type: int
+  - name: cond
+    type: char
+  - name: seq
+    type: int
+  - name: nationalBBOIndicator
+    type: char
+  - name: finraBBOIndicator
+    type: char
+  - name: finraADFMpidIndicator
+    type: char
+  - name: corr
+    type: char
+  - name: source
+    type: char
+  - name: retailInterestIndicator
+    type: char
+  - name: shortSaleRestrictionIndicator
+    type: char
+  - name: LULDBBOIndicator
+    type: char
+  - name: SIPGeneratedMessageIdentifier
+    type: char
+  - name: nationalBBOLULDIndicator
+    type: char
+  - name: participantTimestamp
+    type: timespan
+  - name: FINRAADFTimestamp
+    type: timespan
+  - name: FINRAADFMarketParticipantQuoteIndicator
+    type: char
+  - name: securityStatusIndicator
+    type: char

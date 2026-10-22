@@ -20,7 +20,6 @@ build:
 
 requirements:
   run:
-    - q-kx-printf
     - q-kx-log
 
 about:
@@ -38,4 +37,11 @@ tests:
     - test -f ${PREFIX}/lib/q/mod/kx/taq/converters.q
     - test -f ${PREFIX}/lib/q/mod/kx/taq/init.q
     - test -f ${PREFIX}/lib/q/mod/kx/taq/inputSchema.q
-    - test -f ${PREFIX}/lib/q/mod/kx/taq/schema.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/schemas/dbservice/init.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/schemas/dbservice/master.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/schemas/dbservice/trade.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/schemas/dbservice/quote.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/schemas/q/init.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/schemas/q/master.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/schemas/q/trade.q
+    - test -f ${PREFIX}/lib/q/mod/kx/taq/schemas/q/quote.q
